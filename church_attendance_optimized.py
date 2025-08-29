@@ -15,6 +15,20 @@ from typing import Dict, List, Optional, Tuple
 import json
 import hashlib
 import secrets
+import io
+import base64
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+import os
 
 # Configure Streamlit page
 st.set_page_config(
@@ -72,6 +86,28 @@ class UserManager:
     
     def __init__(self, sheets_manager):
         self.sheets_manager = sheets_manager
+    
+    def _clear_cache(self, cache_key: str):
+        """Clear cache for a specific key"""
+        if hasattr(self.sheets_manager, '_clear_cache'):
+            self.sheets_manager._clear_cache(cache_key)
+    
+    def _is_cache_valid(self, cache_key: str) -> bool:
+        """Check if cache is valid"""
+        if hasattr(self.sheets_manager, '_is_cache_valid'):
+            return self.sheets_manager._is_cache_valid(cache_key)
+        return False
+    
+    def _get_cache(self, cache_key: str):
+        """Get cached data"""
+        if hasattr(self.sheets_manager, '_get_cache'):
+            return self.sheets_manager._get_cache(cache_key)
+        return None
+    
+    def _set_cache(self, cache_key: str, data):
+        """Set cache data"""
+        if hasattr(self.sheets_manager, '_set_cache'):
+            self.sheets_manager._set_cache(cache_key, data)
     
     @staticmethod
     def hash_password(password: str, salt: str = None) -> Tuple[str, str]:
@@ -191,6 +227,91 @@ class UserManager:
             
         except Exception as e:
             st.error(f"Error saving user: {str(e)}")
+            return False
+    
+    @rate_limit(2.0)
+    def update_user_role(self, username: str, new_role: str) -> bool:
+        """Update a user's role"""
+        try:
+            worksheet = self.sheets_manager.spreadsheet.worksheet("Users")
+            users_data = worksheet.get_all_records()
+            
+            for i, user_record in enumerate(users_data, start=2):
+                if user_record['username'] == username:
+                    # Update role column (column 4)
+                    worksheet.update_cell(i, 4, new_role)
+                    
+                    # Clear cache to force reload
+                    self._clear_cache("load_users")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            st.error(f"Error updating user role: {str(e)}")
+            return False
+    
+    @rate_limit(2.0)
+    def toggle_user_active(self, username: str) -> bool:
+        """Toggle user active status"""
+        try:
+            worksheet = self.sheets_manager.spreadsheet.worksheet("Users")
+            users_data = worksheet.get_all_records()
+            
+            for i, user_record in enumerate(users_data, start=2):
+                if user_record['username'] == username:
+                    current_status = str(user_record.get('is_active', 'True')).lower() in ['true', '1', 'yes']
+                    new_status = not current_status
+                    
+                    # Update is_active column (column 9)
+                    worksheet.update_cell(i, 9, new_status)
+                    
+                    # Clear cache to force reload
+                    self._clear_cache("load_users")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            st.error(f"Error toggling user status: {str(e)}")
+            return False
+    
+    @rate_limit(2.0)
+    def delete_user(self, username: str) -> bool:
+        """Delete a user (cannot delete super_admin users if they're the last one)"""
+        try:
+            # Load current users
+            users_df = self.load_users(use_cache=False)
+            
+            # Find user to delete
+            user_to_delete = users_df[users_df['username'] == username]
+            if user_to_delete.empty:
+                st.error("User not found")
+                return False
+            
+            # Check if this is the last super_admin
+            if user_to_delete.iloc[0]['role'] == 'super_admin':
+                super_admins = users_df[users_df['role'] == 'super_admin']
+                if len(super_admins) <= 1:
+                    st.error("Cannot delete the last Super Admin user")
+                    return False
+            
+            # Delete from spreadsheet
+            worksheet = self.sheets_manager.spreadsheet.worksheet("Users")
+            users_data = worksheet.get_all_records()
+            
+            for i, user_record in enumerate(users_data, start=2):
+                if user_record['username'] == username:
+                    worksheet.delete_rows(i)
+                    
+                    # Clear cache to force reload
+                    self._clear_cache("load_users")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            st.error(f"Error deleting user: {str(e)}")
             return False
     
     def authenticate_user(self, username: str, password: str) -> Optional[dict]:
@@ -483,6 +604,65 @@ class GoogleSheetsManager:
         except Exception as e:
             st.error(f"Failed to save attendance: {str(e)}")
             return False
+    
+    @rate_limit(2.0)
+    def update_attendance_record(self, original_record: dict, updated_record: dict) -> bool:
+        """Update a specific attendance record"""
+        try:
+            worksheet = self.spreadsheet.worksheet('Attendance')
+            all_records = worksheet.get_all_records()
+            
+            # Find the matching record to update
+            for i, record in enumerate(all_records, start=2):  # Start at 2 to account for headers
+                # Match by date, name, and timestamp for uniqueness
+                if (str(record.get('Date', '')) == str(original_record.get('Date', '')) and
+                    str(record.get('Full Name', '')) == str(original_record.get('Full Name', '')) and
+                    str(record.get('Timestamp', '')) == str(original_record.get('Timestamp', ''))):
+                    
+                    # Update the record
+                    worksheet.update_cell(i, 1, updated_record.get('Date', ''))  # Date
+                    worksheet.update_cell(i, 2, updated_record.get('Membership Number', ''))  # Membership Number
+                    worksheet.update_cell(i, 3, updated_record.get('Full Name', ''))  # Full Name
+                    worksheet.update_cell(i, 4, updated_record.get('Group', ''))  # Group
+                    worksheet.update_cell(i, 5, updated_record.get('Status', 'Present'))  # Status
+                    worksheet.update_cell(i, 6, updated_record.get('Timestamp', ''))  # Timestamp
+                    
+                    # Clear cache
+                    self.clear_cache()
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            st.error(f"Failed to update attendance record: {str(e)}")
+            return False
+    
+    @rate_limit(2.0)
+    def delete_attendance_record(self, record_to_delete: dict) -> bool:
+        """Delete a specific attendance record"""
+        try:
+            worksheet = self.spreadsheet.worksheet('Attendance')
+            all_records = worksheet.get_all_records()
+            
+            # Find the matching record to delete
+            for i, record in enumerate(all_records, start=2):  # Start at 2 to account for headers
+                # Match by date, name, and timestamp for uniqueness
+                if (str(record.get('Date', '')) == str(record_to_delete.get('Date', '')) and
+                    str(record.get('Full Name', '')) == str(record_to_delete.get('Full Name', '')) and
+                    str(record.get('Timestamp', '')) == str(record_to_delete.get('Timestamp', ''))):
+                    
+                    # Delete the row
+                    worksheet.delete_rows(i)
+                    
+                    # Clear cache
+                    self.clear_cache()
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            st.error(f"Failed to delete attendance record: {str(e)}")
+            return False
 
 
 def show_login():
@@ -521,16 +701,8 @@ def show_login():
     with st.form("login_form"):
         st.subheader("Sign In")
         
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            username = st.text_input("Username", placeholder="Enter your username")
-            password = st.text_input("Password", type="password", placeholder="Enter your password")
-        
-        with col2:
-            st.write("**Default Admin Credentials:**")
-            st.code("Username: admin\nPassword: admin123")
-            st.caption("⚠️ Please change the default password after first login")
+        username = st.text_input("Username", placeholder="Enter your username")
+        password = st.text_input("Password", type="password", placeholder="Enter your password")
         
         submitted = st.form_submit_button("🔑 Sign In", use_container_width=True, type="primary")
         
@@ -827,7 +999,7 @@ def show_user_management():
     user_manager = st.session_state.user_manager
     users_df = user_manager.load_users()
     
-    tab1, tab2, tab3 = st.tabs(["View Users", "Add User", "User Activity"])
+    tab1, tab2, tab3, tab4 = st.tabs(["View Users", "Add User", "Manage Users", "User Activity"])
     
     with tab1:
         st.subheader("👥 Current Users")
@@ -934,6 +1106,115 @@ def show_user_management():
                         st.error("Failed to create user")
     
     with tab3:
+        st.subheader("⚙️ Manage Existing Users")
+        
+        if users_df.empty:
+            st.info("No users to manage.")
+        else:
+            # Filter out the current user from management options
+            current_username = st.session_state.user['username']
+            manageable_users = users_df[users_df['username'] != current_username]
+            
+            if manageable_users.empty:
+                st.info("No other users to manage.")
+            else:
+                # Select user to manage
+                selected_user = st.selectbox(
+                    "Select User to Manage",
+                    options=manageable_users['username'].tolist(),
+                    format_func=lambda x: f"{x} ({manageable_users[manageable_users['username']==x]['full_name'].iloc[0]}) - {user_manager.get_user_role_info(manageable_users[manageable_users['username']==x]['role'].iloc[0]).get('name', 'Unknown')}"
+                )
+                
+                if selected_user:
+                    user_data = manageable_users[manageable_users['username'] == selected_user].iloc[0]
+                    current_role = user_data['role']
+                    is_active = user_data['is_active']
+                    
+                    st.divider()
+                    st.subheader(f"👤 Managing User: {user_data['full_name']} ({selected_user})")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.write("**Current Information:**")
+                        st.write(f"• **Username:** {selected_user}")
+                        st.write(f"• **Full Name:** {user_data['full_name']}")
+                        st.write(f"• **Email:** {user_data.get('email', 'Not set')}")
+                        st.write(f"• **Role:** {user_manager.get_user_role_info(current_role).get('name', current_role)}")
+                        st.write(f"• **Status:** {'🟢 Active' if is_active else '🔴 Inactive'}")
+                        st.write(f"• **Created:** {user_data.get('created_date', 'Unknown')}")
+                        st.write(f"• **Last Login:** {user_data.get('last_login', 'Never')}")
+                    
+                    with col2:
+                        st.write("**Management Actions:**")
+                        
+                        # Role Management
+                        st.write("**Change Role:**")
+                        new_role = st.selectbox(
+                            "Select New Role",
+                            options=list(UserManager.ROLES.keys()),
+                            index=list(UserManager.ROLES.keys()).index(current_role),
+                            format_func=lambda x: f"{UserManager.ROLES[x]['name']} - {UserManager.ROLES[x]['description']}",
+                            key=f"role_{selected_user}"
+                        )
+                        
+                        if new_role != current_role:
+                            if st.button(f"🔄 Update Role to {UserManager.ROLES[new_role]['name']}", key=f"update_role_{selected_user}"):
+                                if user_manager.update_user_role(selected_user, new_role):
+                                    st.success(f"Role updated successfully!")
+                                    st.rerun()
+                                else:
+                                    st.error("Failed to update role")
+                        
+                        # Status Management
+                        status_action = "Deactivate" if is_active else "Activate"
+                        status_color = "🔴" if is_active else "🟢"
+                        
+                        if st.button(f"{status_color} {status_action} User", key=f"toggle_status_{selected_user}"):
+                            if user_manager.toggle_user_active(selected_user):
+                                st.success(f"User {status_action.lower()}d successfully!")
+                                st.rerun()
+                            else:
+                                st.error(f"Failed to {status_action.lower()} user")
+                        
+                        # Delete User
+                        st.write("**Danger Zone:**")
+                        if st.button("🗑️ Delete User", key=f"delete_{selected_user}", type="secondary"):
+                            # Confirmation in session state
+                            st.session_state[f'confirm_delete_{selected_user}'] = True
+                        
+                        # Confirmation dialog
+                        if st.session_state.get(f'confirm_delete_{selected_user}', False):
+                            st.warning(f"⚠️ Are you sure you want to delete user '{selected_user}'?")
+                            st.write("This action cannot be undone.")
+                            
+                            col_yes, col_no = st.columns(2)
+                            
+                            with col_yes:
+                                if st.button("✅ Yes, Delete", key=f"confirm_yes_{selected_user}", type="primary"):
+                                    if user_manager.delete_user(selected_user):
+                                        st.success("User deleted successfully!")
+                                        if f'confirm_delete_{selected_user}' in st.session_state:
+                                            del st.session_state[f'confirm_delete_{selected_user}']
+                                        st.rerun()
+                                    else:
+                                        st.error("Failed to delete user")
+                            
+                            with col_no:
+                                if st.button("❌ Cancel", key=f"confirm_no_{selected_user}"):
+                                    if f'confirm_delete_{selected_user}' in st.session_state:
+                                        del st.session_state[f'confirm_delete_{selected_user}']
+                                    st.rerun()
+                    
+                    # Security warnings
+                    st.divider()
+                    st.info("💡 **Security Notes:**\n"
+                           "• You cannot manage your own account\n"
+                           "• Cannot delete the last Super Admin user\n" 
+                           "• Inactive users cannot log in\n"
+                           "• Role changes take effect immediately")
+    
+    with tab4:
         st.subheader("📈 User Activity")
         
         if users_df.empty or users_df['last_login'].isna().all():
@@ -1998,44 +2279,23 @@ def generate_monthly_summary_report(attendance_df, members_df, start_date, end_d
         )
         st.plotly_chart(fig, use_container_width=True)
     
-    # Export options
-    st.subheader("📤 Export Report")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        # CSV export
-        report_data = {
+    # Export options using universal export section
+    csv_exports = {
+        "Daily Attendance": pd.DataFrame({
             'Date': daily_attendance['Date'].dt.strftime('%Y-%m-%d'),
             'Attendance Count': daily_attendance['Count']
-        }
-        csv_data = pd.DataFrame(report_data).to_csv(index=False)
-        st.download_button(
-            label="📊 Download Daily Data (CSV)",
-            data=csv_data,
-            file_name=f"monthly_report_{start_date.strftime('%Y_%m')}.csv",
-            mime="text/csv"
-        )
+        }).to_csv(index=False)
+    }
     
-    with col2:
-        # Group summary export
-        if not group_summary.empty:
-            group_csv = group_summary.to_csv(index=False)
-            st.download_button(
-                label="👥 Download Group Summary (CSV)",
-                data=group_csv,
-                file_name=f"group_summary_{start_date.strftime('%Y_%m')}.csv",
-                mime="text/csv"
-            )
+    if 'Group' in attendance_df.columns and not group_summary.empty:
+        csv_exports["Group Summary"] = group_summary.to_csv(index=False)
     
-    with col3:
-        # Top attendees export
-        attendees_csv = top_attendees.to_csv(index=False)
-        st.download_button(
-            label="🌟 Download Top Attendees (CSV)",
-            data=attendees_csv,
-            file_name=f"top_attendees_{start_date.strftime('%Y_%m')}.csv",
-            mime="text/csv"
-        )
+    csv_exports["Top Attendees"] = top_attendees.to_csv(index=False)
+    
+    create_universal_export_section(
+        attendance_df, members_df, start_date, end_date, 
+        "Monthly Summary Report", selected_groups, csv_exports
+    )
 
 
 def generate_group_performance_report(attendance_df, members_df, start_date, end_date, selected_groups):
@@ -2122,16 +2382,15 @@ def generate_group_performance_report(attendance_df, members_df, start_date, end
                 st.subheader(f"Top 5 Members in {group}")
                 st.dataframe(group_member_stats, use_container_width=True, hide_index=True)
     
-    # Export group report
-    st.subheader("📤 Export Group Report")
-    if st.button("📊 Download Group Performance Report (CSV)"):
-        csv_data = group_df.to_csv(index=False)
-        st.download_button(
-            label="Download Report",
-            data=csv_data,
-            file_name=f"group_performance_{start_date}_{end_date}.csv",
-            mime="text/csv"
-        )
+    # Export group report using universal export section
+    csv_exports = {
+        "Group Performance": group_df.to_csv(index=False)
+    }
+    
+    create_universal_export_section(
+        attendance_df, members_df, start_date, end_date, 
+        "Group Performance Report", selected_groups, csv_exports
+    )
 
 
 def generate_member_engagement_report(attendance_df, members_df, start_date, end_date, selected_groups):
@@ -2244,33 +2503,20 @@ def generate_member_engagement_report(attendance_df, members_df, start_date, end
         else:
             st.info("All members have good engagement levels!")
     
-    # Export member engagement report
-    st.subheader("📤 Export Member Report")
-    col1, col2 = st.columns(2)
+    # Export member engagement report using universal export section
+    csv_exports = {
+        "Member Engagement": member_stats.to_csv(index=False)
+    }
     
-    with col1:
-        if st.button("📊 Download Full Member Report (CSV)"):
-            csv_data = member_stats.to_csv(index=False)
-            st.download_button(
-                label="Download Report",
-                data=csv_data,
-                file_name=f"member_engagement_{start_date}_{end_date}.csv",
-                mime="text/csv"
-            )
+    # Add low engagement data if it exists
+    low_engagement_full = member_stats[member_stats['Attendance Rate (%)'] < 50]
+    if not low_engagement_full.empty:
+        csv_exports["Low Engagement Members"] = low_engagement_full.to_csv(index=False)
     
-    with col2:
-        if st.button("⚠️ Download Low Engagement List (CSV)"):
-            low_engagement_full = member_stats[member_stats['Attendance Rate (%)'] < 50]
-            if not low_engagement_full.empty:
-                csv_data = low_engagement_full.to_csv(index=False)
-                st.download_button(
-                    label="Download Low Engagement Report",
-                    data=csv_data,
-                    file_name=f"low_engagement_{start_date}_{end_date}.csv",
-                    mime="text/csv"
-                )
-            else:
-                st.info("No members with low engagement!")
+    create_universal_export_section(
+        attendance_df, members_df, start_date, end_date, 
+        "Member Engagement Report", selected_groups, csv_exports
+    )
 
 
 def generate_attendance_trend_report(attendance_df, start_date, end_date):
@@ -2382,18 +2628,18 @@ def generate_attendance_trend_report(attendance_df, start_date, end_date):
         else:
             st.info("Need data spanning multiple months for monthly trend analysis")
     
-    # Export trend data
-    st.subheader("📤 Export Trend Data")
-    if st.button("📈 Download Trend Analysis (CSV)"):
-        trend_export = daily_attendance.copy()
-        trend_export['Date'] = trend_export['Date'].dt.strftime('%Y-%m-%d')
-        csv_data = trend_export.to_csv(index=False)
-        st.download_button(
-            label="Download Trend Data",
-            data=csv_data,
-            file_name=f"attendance_trends_{start_date}_{end_date}.csv",
-            mime="text/csv"
-        )
+    # Export trend data using universal export section
+    trend_export = daily_attendance.copy()
+    trend_export['Date'] = trend_export['Date'].dt.strftime('%Y-%m-%d')
+    
+    csv_exports = {
+        "Attendance Trends": trend_export.to_csv(index=False)
+    }
+    
+    create_universal_export_section(
+        attendance_df, pd.DataFrame(), start_date, end_date, 
+        "Attendance Trend Report", None, csv_exports
+    )
 
 
 def generate_executive_summary_report(attendance_df, members_df, start_date, end_date):
@@ -2510,6 +2756,16 @@ def generate_executive_summary_report(attendance_df, members_df, start_date, end
     
     for rec in recommendations:
         st.markdown(f"• {rec}")
+    
+    # Export executive summary using universal export section
+    csv_exports = {
+        "Executive Summary": attendance_df.to_csv(index=False) if not attendance_df.empty else pd.DataFrame().to_csv(index=False)
+    }
+    
+    create_universal_export_section(
+        attendance_df, members_df, start_date, end_date, 
+        "Executive Summary Report", None, csv_exports
+    )
 
 
 def generate_custom_date_range_report(attendance_df, members_df, start_date, end_date, selected_groups):
@@ -2553,20 +2809,19 @@ def generate_custom_date_range_report(attendance_df, members_df, start_date, end
             group_df = pd.DataFrame(group_data)
             st.dataframe(group_df, use_container_width=True, hide_index=True)
         
-        # Export comprehensive report
-        st.subheader("📤 Export Custom Report")
-        if st.button("📋 Download Custom Report (CSV)"):
-            # Create comprehensive export data
-            export_data = attendance_df.copy()
-            export_data['Date'] = export_data['Date'].dt.strftime('%Y-%m-%d')
-            
-            csv_data = export_data.to_csv(index=False)
-            st.download_button(
-                label="Download Complete Data",
-                data=csv_data,
-                file_name=f"custom_report_{start_date}_{end_date}.csv",
-                mime="text/csv"
-            )
+        # Export comprehensive report using universal export section
+        export_data = attendance_df.copy()
+        export_data['Date'] = export_data['Date'].dt.strftime('%Y-%m-%d')
+        
+        csv_exports = {
+            "Custom Report": export_data.to_csv(index=False),
+            "Group Summary": group_df.to_csv(index=False)
+        }
+        
+        create_universal_export_section(
+            attendance_df, members_df, start_date, end_date, 
+            "Custom Date Range Report", selected_groups, csv_exports
+        )
     else:
         st.warning("No attendance data found for the selected period and groups.")
 
@@ -2809,8 +3064,73 @@ def show_history():
             st.rerun()
     
     with col4:
-        if st.button("🗑️ Delete Records", use_container_width=True, type="secondary"):
-            st.warning("⚠️ Bulk delete functionality coming soon!")
+        if st.button("🗑️ Delete Filtered Records", use_container_width=True, type="secondary"):
+            st.session_state.show_bulk_delete = True
+            st.rerun()
+    
+    # Bulk Delete Modal
+    if st.session_state.get('show_bulk_delete', False):
+        st.divider()
+        st.error("⚠️ Bulk Delete Filtered Records")
+        
+        st.write(f"**You are about to delete {len(filtered_df)} records matching your current filters.**")
+        
+        if len(filtered_df) > 0:
+            # Show a preview of what will be deleted
+            preview_df = filtered_df[['Date', 'Full Name', 'Group']].head(10)
+            preview_df['Date'] = preview_df['Date'].dt.strftime('%Y-%m-%d')
+            
+            st.write("**Preview of records to be deleted (showing first 10):**")
+            st.dataframe(preview_df, use_container_width=True, hide_index=True)
+            
+            if len(filtered_df) > 10:
+                st.write(f"... and {len(filtered_df) - 10} more records")
+        
+        st.error("**⚠️ WARNING: This action cannot be undone!**")
+        
+        # Type confirmation
+        st.write("To confirm, type **DELETE** in the box below:")
+        confirmation = st.text_input("Confirmation:", key="bulk_delete_confirmation")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("🗑️ Delete All Filtered Records", key="confirm_bulk_delete", type="primary", disabled=(confirmation != "DELETE")):
+                if confirmation == "DELETE":
+                    deleted_count = 0
+                    total_to_delete = len(filtered_df)
+                    
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    # Delete records one by one
+                    for idx, (_, record) in enumerate(filtered_df.iterrows()):
+                        record_to_delete = {
+                            'Date': record['Date'].strftime('%Y-%m-%d'),
+                            'Full Name': record['Full Name'],
+                            'Timestamp': record.get('Timestamp', '')
+                        }
+                        
+                        if st.session_state.sheets_manager.delete_attendance_record(record_to_delete):
+                            deleted_count += 1
+                        
+                        # Update progress
+                        progress = (idx + 1) / total_to_delete
+                        progress_bar.progress(progress)
+                        status_text.text(f"Deleted {deleted_count}/{total_to_delete} records...")
+                        time.sleep(0.1)  # Small delay to show progress
+                    
+                    st.success(f"✅ Successfully deleted {deleted_count} out of {total_to_delete} records!")
+                    st.session_state.show_bulk_delete = False
+                    time.sleep(2)
+                    st.rerun()
+                else:
+                    st.error("Please type DELETE to confirm")
+        
+        with col2:
+            if st.button("❌ Cancel", key="cancel_bulk_delete"):
+                st.session_state.show_bulk_delete = False
+                st.rerun()
     
     # Record details expander
     if not page_df.empty:
@@ -2861,10 +3181,119 @@ def show_history():
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.button("✏️ Edit Record", key=f"edit_{selected_record}"):
-                        st.info("📝 Individual record editing coming soon!")
+                        st.session_state[f'editing_record_{selected_record}'] = True
+                        st.rerun()
                 with col2:
                     if st.button("🗑️ Delete Record", key=f"delete_{selected_record}", type="secondary"):
-                        st.warning("⚠️ Individual record deletion coming soon!")
+                        st.session_state[f'deleting_record_{selected_record}'] = True
+                        st.rerun()
+                
+                # Edit Record Modal
+                if st.session_state.get(f'editing_record_{selected_record}', False):
+                    st.divider()
+                    st.subheader("✏️ Edit Attendance Record")
+                    
+                    with st.form(f"edit_form_{selected_record}"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            # Get member options for dropdown
+                            members_df = st.session_state.sheets_manager.load_members()
+                            member_options = sorted(members_df['Full Name'].unique()) if not members_df.empty else [record['Full Name']]
+                            
+                            edit_name = st.selectbox(
+                                "Member Name:",
+                                options=member_options,
+                                index=member_options.index(record['Full Name']) if record['Full Name'] in member_options else 0
+                            )
+                            
+                            edit_date = st.date_input(
+                                "Date:",
+                                value=record['Date'].date(),
+                                key=f"edit_date_{selected_record}"
+                            )
+                        
+                        with col2:
+                            # Get group options
+                            group_options = sorted(members_df['Group'].unique()) if not members_df.empty else [record['Group']]
+                            edit_group = st.selectbox(
+                                "Group:",
+                                options=group_options,
+                                index=group_options.index(record['Group']) if record['Group'] in group_options else 0
+                            )
+                            
+                            edit_membership_number = st.text_input(
+                                "Membership Number:",
+                                value=str(record.get('Membership Number', '')),
+                                key=f"edit_membership_{selected_record}"
+                            )
+                        
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            submitted = st.form_submit_button("💾 Save Changes", type="primary")
+                        with col2:
+                            if st.form_submit_button("❌ Cancel"):
+                                st.session_state[f'editing_record_{selected_record}'] = False
+                                st.rerun()
+                        
+                        if submitted:
+                            # Create updated record
+                            original_record = {
+                                'Date': record['Date'].strftime('%Y-%m-%d'),
+                                'Full Name': record['Full Name'],
+                                'Timestamp': record.get('Timestamp', '')
+                            }
+                            
+                            updated_record = {
+                                'Date': edit_date.strftime('%Y-%m-%d'),
+                                'Membership Number': edit_membership_number,
+                                'Full Name': edit_name,
+                                'Group': edit_group,
+                                'Status': 'Present',
+                                'Timestamp': record.get('Timestamp', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+                            }
+                            
+                            # Update the record
+                            if st.session_state.sheets_manager.update_attendance_record(original_record, updated_record):
+                                st.success("✅ Record updated successfully!")
+                                st.session_state[f'editing_record_{selected_record}'] = False
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error("❌ Failed to update record")
+                
+                # Delete Record Modal
+                if st.session_state.get(f'deleting_record_{selected_record}', False):
+                    st.divider()
+                    st.error("⚠️ Delete Attendance Record")
+                    st.write(f"Are you sure you want to delete the attendance record for **{record['Full Name']}** on **{record['Date'].strftime('%Y-%m-%d')}**?")
+                    st.write("This action cannot be undone.")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        if st.button("🗑️ Yes, Delete", key=f"confirm_delete_{selected_record}", type="primary"):
+                            # Create record identifier
+                            record_to_delete = {
+                                'Date': record['Date'].strftime('%Y-%m-%d'),
+                                'Full Name': record['Full Name'],
+                                'Timestamp': record.get('Timestamp', '')
+                            }
+                            
+                            # Delete the record
+                            if st.session_state.sheets_manager.delete_attendance_record(record_to_delete):
+                                st.success("✅ Record deleted successfully!")
+                                st.session_state[f'deleting_record_{selected_record}'] = False
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error("❌ Failed to delete record")
+                    
+                    with col2:
+                        if st.button("❌ Cancel", key=f"cancel_delete_{selected_record}"):
+                            st.session_state[f'deleting_record_{selected_record}'] = False
+                            st.rerun()
 
 
 def show_admin_panel():
@@ -3243,6 +3672,589 @@ def show_admin_panel():
         st.write(f"• **Cache Entries:** {len(st.session_state.sheets_manager.cache)}")
         st.write(f"• **Connection Status:** {'Active' if st.session_state.sheets_manager.connection_status else 'Inactive'}")
         st.write(f"• **Rate Limiting:** Active")
+
+
+# PDF Generation Functions
+def create_pdf_report(report_data: dict, report_type: str) -> bytes:
+    """Create a PDF report from report data"""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
+    
+    # Custom styles
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        textColor=colors.darkblue,
+        spaceAfter=30,
+        alignment=1  # Center alignment
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Heading2'],
+        fontSize=14,
+        textColor=colors.darkgreen,
+        spaceAfter=12
+    )
+    
+    # Header with church info
+    story.append(Paragraph("⛪ Church Attendance Management System", title_style))
+    story.append(Spacer(1, 12))
+    story.append(Paragraph(f"{report_type}", subtitle_style))
+    story.append(Paragraph(f"Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['Normal']))
+    story.append(Spacer(1, 20))
+    
+    # Report period
+    if 'period' in report_data:
+        story.append(Paragraph(f"<b>Report Period:</b> {report_data['period']}", styles['Normal']))
+        story.append(Spacer(1, 12))
+    
+    # Key metrics section
+    if 'metrics' in report_data:
+        story.append(Paragraph("📊 Key Metrics", subtitle_style))
+        metrics_data = []
+        for metric_name, metric_value in report_data['metrics'].items():
+            metrics_data.append([metric_name, str(metric_value)])
+        
+        metrics_table = Table(metrics_data, colWidths=[3*inch, 2*inch])
+        metrics_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        story.append(metrics_table)
+        story.append(Spacer(1, 20))
+    
+    # Detailed data tables
+    if 'tables' in report_data:
+        for table_name, table_data in report_data['tables'].items():
+            story.append(Paragraph(f"📋 {table_name}", subtitle_style))
+            
+            if isinstance(table_data, pd.DataFrame) and not table_data.empty:
+                # Convert DataFrame to table data
+                table_rows = [list(table_data.columns)]
+                table_rows.extend(table_data.values.tolist())
+                
+                # Create table
+                pdf_table = Table(table_rows)
+                pdf_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.lightgrey),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+                ]))
+                story.append(pdf_table)
+            else:
+                story.append(Paragraph("No data available for this section.", styles['Normal']))
+            
+            story.append(Spacer(1, 15))
+    
+    # Summary and insights
+    if 'summary' in report_data:
+        story.append(Paragraph("📝 Summary & Insights", subtitle_style))
+        for insight in report_data['summary']:
+            story.append(Paragraph(f"• {insight}", styles['Normal']))
+        story.append(Spacer(1, 15))
+    
+    # Footer
+    story.append(Spacer(1, 30))
+    story.append(Paragraph("This report was automatically generated by the Church Attendance Management System.", 
+                          styles['Italic']))
+    
+    doc.build(story)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    return pdf_bytes
+
+
+def generate_printable_report_html(report_data: dict, report_type: str) -> str:
+    """Generate HTML for printable reports with proper styling"""
+    html_template = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>{report_type}</title>
+        <style>
+            @media print {{
+                .no-print {{ display: none; }}
+                body {{ margin: 0.5in; }}
+            }}
+            body {{
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+            }}
+            .header {{
+                text-align: center;
+                border-bottom: 2px solid #4CAF50;
+                padding-bottom: 20px;
+                margin-bottom: 30px;
+            }}
+            .header h1 {{
+                color: #2E7D32;
+                margin: 0;
+                font-size: 24px;
+            }}
+            .header h2 {{
+                color: #666;
+                margin: 5px 0;
+                font-size: 18px;
+            }}
+            .metrics-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+                margin: 20px 0;
+            }}
+            .metric-card {{
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                padding: 15px;
+                text-align: center;
+                background-color: #f9f9f9;
+            }}
+            .metric-value {{
+                font-size: 24px;
+                font-weight: bold;
+                color: #2E7D32;
+            }}
+            .metric-label {{
+                font-size: 14px;
+                color: #666;
+                margin-top: 5px;
+            }}
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin: 20px 0;
+            }}
+            th, td {{
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }}
+            th {{
+                background-color: #4CAF50;
+                color: white;
+                font-weight: bold;
+            }}
+            tr:nth-child(even) {{
+                background-color: #f2f2f2;
+            }}
+            .section-title {{
+                color: #2E7D32;
+                border-bottom: 1px solid #4CAF50;
+                padding-bottom: 5px;
+                margin: 25px 0 15px 0;
+            }}
+            .summary-list {{
+                background-color: #f0f8f0;
+                padding: 15px;
+                border-radius: 5px;
+                margin: 15px 0;
+            }}
+            .summary-list ul {{
+                margin: 0;
+                padding-left: 20px;
+            }}
+            .footer {{
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid #ddd;
+                text-align: center;
+                font-size: 12px;
+                color: #666;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>⛪ Church Attendance Management System</h1>
+            <h2>{report_type}</h2>
+            <p><strong>Generated on:</strong> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+            {'<p><strong>Report Period:</strong> ' + report_data.get('period', 'N/A') + '</p>' if 'period' in report_data else ''}
+        </div>
+    """
+    
+    # Add metrics section
+    if 'metrics' in report_data:
+        html_template += """
+        <h3 class="section-title">📊 Key Metrics</h3>
+        <div class="metrics-grid">
+        """
+        for metric_name, metric_value in report_data['metrics'].items():
+            html_template += f"""
+            <div class="metric-card">
+                <div class="metric-value">{metric_value}</div>
+                <div class="metric-label">{metric_name}</div>
+            </div>
+            """
+        html_template += "</div>"
+    
+    # Add tables section
+    if 'tables' in report_data:
+        for table_name, table_data in report_data['tables'].items():
+            html_template += f"""<h3 class="section-title">📋 {table_name}</h3>"""
+            
+            if isinstance(table_data, pd.DataFrame) and not table_data.empty:
+                html_template += table_data.to_html(classes='', table_id='', escape=False, index=False)
+            else:
+                html_template += "<p>No data available for this section.</p>"
+    
+    # Add summary section
+    if 'summary' in report_data:
+        html_template += """
+        <h3 class="section-title">📝 Summary & Insights</h3>
+        <div class="summary-list">
+            <ul>
+        """
+        for insight in report_data['summary']:
+            html_template += f"<li>{insight}</li>"
+        html_template += "</ul></div>"
+    
+    # Footer
+    html_template += """
+        <div class="footer">
+            <p>This report was automatically generated by the Church Attendance Management System.</p>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return html_template
+
+
+def send_report_email(recipient_email: str, report_data: dict, report_type: str, 
+                     attachment_type: str = 'pdf') -> bool:
+    """Send report via email with PDF or HTML attachment"""
+    try:
+        # Email configuration - these should be set in Streamlit secrets
+        smtp_server = st.secrets.get("email", {}).get("smtp_server", "smtp.gmail.com")
+        smtp_port = st.secrets.get("email", {}).get("smtp_port", 587)
+        sender_email = st.secrets.get("email", {}).get("sender_email", "")
+        sender_password = st.secrets.get("email", {}).get("sender_password", "")
+        
+        if not sender_email or not sender_password:
+            st.error("Email configuration not found in secrets. Please configure email settings.")
+            return False
+        
+        # Create message
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = recipient_email
+        msg['Subject'] = f"Church Attendance Report - {report_type}"
+        
+        # Email body
+        body = f"""
+Dear Team,
+
+Please find attached the {report_type} generated from the Church Attendance Management System.
+
+Report Details:
+- Type: {report_type}
+- Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
+- Period: {report_data.get('period', 'N/A')}
+
+Best regards,
+Church Attendance Management System
+        """
+        
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Create and attach report
+        if attachment_type == 'pdf':
+            pdf_bytes = create_pdf_report(report_data, report_type)
+            attachment = MIMEBase('application', 'octet-stream')
+            attachment.set_payload(pdf_bytes)
+            encoders.encode_base64(attachment)
+            attachment.add_header(
+                'Content-Disposition',
+                f'attachment; filename="{report_type.replace(" ", "_")}.pdf"'
+            )
+        else:  # HTML
+            html_content = generate_printable_report_html(report_data, report_type)
+            attachment = MIMEText(html_content, 'html')
+            attachment.add_header(
+                'Content-Disposition',
+                f'attachment; filename="{report_type.replace(" ", "_")}.html"'
+            )
+        
+        msg.attach(attachment)
+        
+        # Send email
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        text = msg.as_string()
+        server.sendmail(sender_email, recipient_email, text)
+        server.quit()
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Failed to send email: {str(e)}")
+        return False
+
+
+def create_universal_export_section(attendance_df: pd.DataFrame, members_df: pd.DataFrame, 
+                                   start_date: date, end_date: date, report_type: str,
+                                   selected_groups: List[str] = None, additional_csv_data: dict = None):
+    """Create a universal export section for all report types"""
+    st.subheader("📤 Export & Share Report")
+    
+    # Create unique identifier for this export section
+    section_id = hash(f"{report_type}_{start_date}_{end_date}_{str(selected_groups)}")
+    
+    # Enhanced export options
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        # CSV export
+        if additional_csv_data:
+            main_csv = list(additional_csv_data.values())[0]
+            main_filename = list(additional_csv_data.keys())[0]
+        else:
+            main_csv = attendance_df.to_csv(index=False)
+            main_filename = f"{report_type.lower().replace(' ', '_')}"
+        
+        st.download_button(
+            label="📊 Download CSV",
+            data=main_csv,
+            file_name=f"{main_filename}_{start_date.strftime('%Y_%m_%d')}.csv",
+            mime="text/csv",
+            key=f"csv_main_{section_id}"
+        )
+    
+    with col2:
+        # PDF export - generate and store in session state
+        pdf_key = f"pdf_data_{section_id}"
+        
+        if st.button("📄 Generate PDF", key=f"pdf_btn_{section_id}", use_container_width=True):
+            try:
+                with st.spinner("Generating PDF..."):
+                    # Extract report data
+                    pdf_report_data = extract_report_data_for_pdf(
+                        attendance_df, members_df, start_date, end_date, 
+                        report_type, selected_groups
+                    )
+                    
+                    # Create PDF
+                    pdf_bytes = create_pdf_report(pdf_report_data, report_type)
+                    
+                    # Store in session state
+                    st.session_state[pdf_key] = pdf_bytes
+                    st.success(f"✅ PDF generated successfully! ({len(pdf_bytes)} bytes)")
+                    
+            except Exception as e:
+                st.error(f"❌ Error generating PDF: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
+        
+        # Show download button if PDF exists
+        if pdf_key in st.session_state:
+            st.download_button(
+                label="📥 Download PDF Report",
+                data=st.session_state[pdf_key],
+                file_name=f"{report_type.replace(' ', '_')}_{start_date.strftime('%Y_%m_%d')}.pdf",
+                mime="application/pdf",
+                key=f"download_pdf_{section_id}",
+                use_container_width=True
+            )
+    
+    with col3:
+        # HTML export - generate and store in session state
+        html_key = f"html_data_{section_id}"
+        
+        if st.button("🖨️ Generate HTML", key=f"html_btn_{section_id}", use_container_width=True):
+            try:
+                with st.spinner("Generating printable HTML..."):
+                    # Extract report data
+                    pdf_report_data = extract_report_data_for_pdf(
+                        attendance_df, members_df, start_date, end_date, 
+                        report_type, selected_groups
+                    )
+                    
+                    # Create HTML
+                    html_content = generate_printable_report_html(pdf_report_data, report_type)
+                    
+                    # Store in session state
+                    st.session_state[html_key] = html_content
+                    st.success(f"✅ HTML generated successfully! ({len(html_content)} characters)")
+                    
+            except Exception as e:
+                st.error(f"❌ Error generating HTML: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
+        
+        # Show download button if HTML exists
+        if html_key in st.session_state:
+            st.download_button(
+                label="📥 Download HTML (Printable)",
+                data=st.session_state[html_key],
+                file_name=f"{report_type.replace(' ', '_')}_{start_date.strftime('%Y_%m_%d')}_Printable.html",
+                mime="text/html",
+                key=f"download_html_{section_id}",
+                use_container_width=True
+            )
+            
+            # Show preview
+            with st.expander("📋 Preview Printable Report"):
+                st.components.v1.html(st.session_state[html_key], height=400, scrolling=True)
+    
+    with col4:
+        # Email functionality - simple approach
+        st.write("**📧 Email Report**")
+        
+        with st.form(f"email_form_{section_id}"):
+            recipient_email = st.text_input(
+                "Recipient Email",
+                placeholder="pastor@church.org"
+            )
+            
+            email_format = st.selectbox(
+                "Format",
+                ["PDF Attachment", "HTML Attachment"]
+            )
+            
+            if st.form_submit_button("📧 Send Report", type="primary", use_container_width=True):
+                if recipient_email:
+                    try:
+                        with st.spinner("Generating and sending report..."):
+                            st.info("Step 1: Extracting report data...")
+                            # Extract report data
+                            pdf_report_data = extract_report_data_for_pdf(
+                                attendance_df, members_df, start_date, end_date, 
+                                report_type, selected_groups
+                            )
+                            
+                            st.info("Step 2: Checking email configuration...")
+                            # Check if email is configured
+                            if not hasattr(st.secrets, "email") or not st.secrets.get("email", {}):
+                                st.error("❌ Email not configured! Please add email settings to .streamlit/secrets.toml")
+                                st.code("""
+# Add this to .streamlit/secrets.toml:
+[email]
+smtp_server = "smtp.gmail.com"
+smtp_port = 587
+sender_email = "your-email@gmail.com" 
+sender_password = "your-app-password"
+                                """)
+                                return
+                            
+                            st.info("Step 3: Sending email...")
+                            # Send email
+                            attachment_type = 'pdf' if email_format == "PDF Attachment" else 'html'
+                            
+                            if send_report_email(recipient_email, pdf_report_data, 
+                                               report_type, attachment_type):
+                                st.success(f"✅ Report emailed successfully to {recipient_email}!")
+                            else:
+                                st.error("❌ Failed to send email. Check email configuration.")
+                                
+                    except Exception as e:
+                        st.error(f"❌ Error sending email: {str(e)}")
+                        import traceback
+                        st.code(traceback.format_exc())
+                else:
+                    st.error("❌ Please enter a recipient email address.")
+    
+    # Additional data exports if provided
+    if additional_csv_data and len(additional_csv_data) > 1:
+        st.markdown("---")
+        st.subheader("📊 Additional Data Exports")
+        cols = st.columns(min(len(additional_csv_data) - 1, 3))
+        
+        for idx, (name, csv_data) in enumerate(list(additional_csv_data.items())[1:]):
+            if idx < len(cols):
+                with cols[idx]:
+                    st.download_button(
+                        label=f"📊 {name}",
+                        data=csv_data,
+                        file_name=f"{name.lower().replace(' ', '_')}_{start_date.strftime('%Y_%m_%d')}.csv",
+                        mime="text/csv",
+                        key=f"csv_{name}_{section_id}"
+                    )
+
+
+def extract_report_data_for_pdf(attendance_df: pd.DataFrame, members_df: pd.DataFrame, 
+                               start_date: date, end_date: date, report_type: str,
+                               selected_groups: List[str] = None) -> dict:
+    """Extract and structure report data for PDF generation"""
+    report_data = {
+        'period': f"{start_date.strftime('%B %d, %Y')} - {end_date.strftime('%B %d, %Y')}",
+        'metrics': {},
+        'tables': {},
+        'summary': []
+    }
+    
+    if attendance_df.empty:
+        report_data['summary'] = ["No attendance data available for the selected period."]
+        return report_data
+    
+    # Common metrics
+    total_attendance = len(attendance_df)
+    unique_attendees = attendance_df['Full Name'].nunique()
+    unique_days = attendance_df['Date'].dt.date.nunique()
+    avg_daily_attendance = total_attendance / unique_days if unique_days > 0 else 0
+    
+    report_data['metrics'] = {
+        'Total Attendance Records': total_attendance,
+        'Unique Attendees': unique_attendees,
+        'Active Days': unique_days,
+        'Average Daily Attendance': f"{avg_daily_attendance:.1f}"
+    }
+    
+    # Daily breakdown
+    daily_attendance = attendance_df.groupby(attendance_df['Date'].dt.date).size().reset_index(name='Count')
+    daily_attendance.columns = ['Date', 'Attendance Count']
+    daily_attendance['Date'] = daily_attendance['Date'].astype(str)
+    report_data['tables']['Daily Attendance Breakdown'] = daily_attendance
+    
+    # Group performance if available
+    if 'Group' in attendance_df.columns and not attendance_df['Group'].isna().all():
+        group_summary = attendance_df.groupby('Group').agg({
+            'Full Name': 'nunique',
+            'Date': 'count'
+        }).reset_index()
+        group_summary.columns = ['Group', 'Unique Members', 'Total Attendance']
+        report_data['tables']['Group Performance'] = group_summary
+    
+    # Top attendees
+    top_attendees = attendance_df.groupby(['Full Name', 'Group']).size().reset_index(name='Attendance Count')
+    top_attendees = top_attendees.sort_values('Attendance Count', ascending=False).head(10)
+    report_data['tables']['Top 10 Attendees'] = top_attendees
+    
+    # Generate summary insights
+    if unique_days > 0:
+        participation_rate = (unique_attendees / len(members_df)) * 100 if not members_df.empty else 0
+        
+        summary_insights = [
+            f"Total of {total_attendance} attendance records were recorded over {unique_days} active days",
+            f"Average daily attendance was {avg_daily_attendance:.1f} people",
+            f"Participation rate: {participation_rate:.1f}% of registered members attended during this period"
+        ]
+        
+        if 'Group' in attendance_df.columns:
+            most_active_group = attendance_df['Group'].value_counts().index[0] if len(attendance_df['Group'].value_counts()) > 0 else 'N/A'
+            summary_insights.append(f"Most active group: {most_active_group}")
+        
+        report_data['summary'] = summary_insights
+    
+    return report_data
 
 
 if __name__ == "__main__":
