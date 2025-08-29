@@ -417,6 +417,33 @@ class GoogleSheetsManager:
         self.cache = {}
         self.cache_timeout = 300  # 5 minutes
         self.connection_status = False
+        self.connection_timestamp = None
+        self.connection_timeout = 3600  # 1 hour before re-authentication
+        
+    def is_connection_valid(self):
+        """Check if current connection is still valid"""
+        if not self.connection_status or self.client is None or self.spreadsheet is None:
+            return False
+            
+        # Check if connection has timed out
+        if self.connection_timestamp:
+            time_since_connection = time.time() - self.connection_timestamp
+            if time_since_connection > self.connection_timeout:
+                return False
+        
+        # Test connection with a simple API call
+        try:
+            # Try to access spreadsheet properties (lightweight call)
+            _ = self.spreadsheet.title
+            return True
+        except Exception:
+            return False
+    
+    def ensure_connection(self):
+        """Ensure connection is active, reconnect if necessary"""
+        if self.is_connection_valid():
+            return True
+        return self.initialize_connection()
         
     def initialize_connection(self):
         """Initialize Google Sheets connection using service account credentials"""
@@ -432,11 +459,13 @@ class GoogleSheetsManager:
             self.spreadsheet = self.client.open(spreadsheet_name)
             
             self.connection_status = True
+            self.connection_timestamp = time.time()
             return True
             
         except Exception as e:
             st.error(f"Failed to connect to Google Sheets: {str(e)}")
             self.connection_status = False
+            self.connection_timestamp = None
             return False
     
     def _get_cache_key(self, method_name: str, *args) -> str:
@@ -466,6 +495,11 @@ class GoogleSheetsManager:
     
     def setup_worksheets(self):
         """Create required worksheets if they don't exist"""
+        # Ensure connection is active
+        if not self.ensure_connection():
+            st.error("Unable to connect to Google Sheets for worksheet setup")
+            return False
+            
         try:
             required_sheets = {
                 'Members': ['Membership Number', 'Full Name', 'Group', 'Email', 'Phone'],
@@ -482,6 +516,8 @@ class GoogleSheetsManager:
             return True
         except Exception as e:
             st.error(f"Failed to setup worksheets: {str(e)}")
+            # Connection might have failed, reset status
+            self.connection_status = False
             return False
     
     @rate_limit(1.0)
@@ -491,6 +527,11 @@ class GoogleSheetsManager:
         
         if use_cache and self._is_cache_valid(cache_key):
             return self._get_cache(cache_key)
+        
+        # Ensure connection is active
+        if not self.ensure_connection():
+            st.error("Unable to connect to Google Sheets")
+            return pd.DataFrame()
         
         try:
             worksheet = self.spreadsheet.worksheet('Members')
@@ -511,11 +552,18 @@ class GoogleSheetsManager:
             
         except Exception as e:
             st.error(f"Failed to load members: {str(e)}")
+            # Connection might have failed, reset status
+            self.connection_status = False
             return pd.DataFrame()
     
     @rate_limit(2.0)
     def save_members(self, df: pd.DataFrame) -> bool:
         """Save members data to Google Sheets"""
+        # Ensure connection is active
+        if not self.ensure_connection():
+            st.error("Unable to connect to Google Sheets")
+            return False
+            
         try:
             worksheet = self.spreadsheet.worksheet('Members')
             
@@ -546,6 +594,8 @@ class GoogleSheetsManager:
             
         except Exception as e:
             st.error(f"Failed to save members: {str(e)}")
+            # Connection might have failed, reset status
+            self.connection_status = False
             return False
     
     @rate_limit(1.0)
@@ -555,6 +605,11 @@ class GoogleSheetsManager:
         
         if use_cache and self._is_cache_valid(cache_key):
             return self._get_cache(cache_key)
+        
+        # Ensure connection is active
+        if not self.ensure_connection():
+            st.error("Unable to connect to Google Sheets")
+            return pd.DataFrame()
         
         try:
             worksheet = self.spreadsheet.worksheet('Attendance')
@@ -572,11 +627,18 @@ class GoogleSheetsManager:
             
         except Exception as e:
             st.error(f"Failed to load attendance: {str(e)}")
+            # Connection might have failed, reset status
+            self.connection_status = False
             return pd.DataFrame()
     
     @rate_limit(2.0)
     def save_attendance(self, attendance_records: List[Dict]) -> bool:
         """Save attendance records to Google Sheets"""
+        # Ensure connection is active
+        if not self.ensure_connection():
+            st.error("Unable to connect to Google Sheets")
+            return False
+            
         try:
             worksheet = self.spreadsheet.worksheet('Attendance')
             
@@ -603,11 +665,18 @@ class GoogleSheetsManager:
             
         except Exception as e:
             st.error(f"Failed to save attendance: {str(e)}")
+            # Connection might have failed, reset status
+            self.connection_status = False
             return False
     
     @rate_limit(2.0)
     def update_attendance_record(self, original_record: dict, updated_record: dict) -> bool:
         """Update a specific attendance record"""
+        # Ensure connection is active
+        if not self.ensure_connection():
+            st.error("Unable to connect to Google Sheets")
+            return False
+            
         try:
             worksheet = self.spreadsheet.worksheet('Attendance')
             all_records = worksheet.get_all_records()
@@ -635,11 +704,18 @@ class GoogleSheetsManager:
             
         except Exception as e:
             st.error(f"Failed to update attendance record: {str(e)}")
+            # Connection might have failed, reset status
+            self.connection_status = False
             return False
     
     @rate_limit(2.0)
     def delete_attendance_record(self, record_to_delete: dict) -> bool:
         """Delete a specific attendance record"""
+        # Ensure connection is active
+        if not self.ensure_connection():
+            st.error("Unable to connect to Google Sheets")
+            return False
+            
         try:
             worksheet = self.spreadsheet.worksheet('Attendance')
             all_records = worksheet.get_all_records()
@@ -662,6 +738,8 @@ class GoogleSheetsManager:
             
         except Exception as e:
             st.error(f"Failed to delete attendance record: {str(e)}")
+            # Connection might have failed, reset status
+            self.connection_status = False
             return False
 
 
@@ -677,8 +755,8 @@ def show_login():
     if 'user_manager' not in st.session_state:
         st.session_state.user_manager = UserManager(st.session_state.sheets_manager)
     
-    # Check connection first
-    if not st.session_state.sheets_manager.connection_status:
+    # Ensure connection (this will connect only if needed)
+    if not st.session_state.sheets_manager.ensure_connection():
         st.error("❌ System not connected to Google Sheets")
         if st.button("🔄 Connect to Google Sheets", use_container_width=True):
             with st.spinner("Connecting..."):
@@ -798,9 +876,13 @@ def main():
     
     st.sidebar.markdown("---")
     
-    # Connection status
-    if st.session_state.sheets_manager.connection_status:
+    # Connection status - check and maintain connection
+    if st.session_state.sheets_manager.ensure_connection():
         st.sidebar.success("✅ Connected to Google Sheets")
+        # Show connection duration if available
+        if st.session_state.sheets_manager.connection_timestamp:
+            duration = time.time() - st.session_state.sheets_manager.connection_timestamp
+            st.sidebar.caption(f"Connected for {duration/60:.1f} minutes")
     else:
         st.sidebar.error("❌ Not connected to Google Sheets")
         if st.sidebar.button("🔄 Try to Connect"):
@@ -3335,6 +3417,8 @@ def show_admin_panel():
     with col1:
         if st.button("🔄 Refresh Connection", use_container_width=True):
             with st.spinner("Reconnecting to Google Sheets..."):
+                # Force a fresh connection by resetting the status first
+                st.session_state.sheets_manager.connection_status = False
                 if st.session_state.sheets_manager.initialize_connection():
                     st.session_state.sheets_manager.setup_worksheets()
                     st.success("✅ Connection refreshed successfully!")
