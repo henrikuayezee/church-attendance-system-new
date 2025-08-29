@@ -94,28 +94,31 @@ class UserManager:
         try:
             users_df = self.load_users()
             
-            if users_df.empty:
-                # Create default admin user
-                password_hash, salt = self.hash_password("admin123")  # Default password
-                
-                default_admin = {
-                    'username': 'admin',
-                    'password_hash': password_hash,
-                    'salt': salt,
-                    'role': 'super_admin',
-                    'full_name': 'System Administrator',
-                    'email': 'admin@church.local',
-                    'created_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'last_login': '',
-                    'is_active': True,
-                    'must_change_password': True
-                }
-                
-                self.save_user(default_admin)
-                return True
+            # Check if users table is truly empty AND no admin user exists
+            if users_df.empty or (not users_df.empty and 'admin' not in users_df['username'].values):
+                # Only create if no admin user exists at all
+                if users_df.empty or users_df[users_df['username'] == 'admin'].empty:
+                    # Create default admin user
+                    password_hash, salt = self.hash_password("admin123")  # Default password
+                    
+                    default_admin = {
+                        'username': 'admin',
+                        'password_hash': password_hash,
+                        'salt': salt,
+                        'role': 'super_admin',
+                        'full_name': 'System Administrator',
+                        'email': 'admin@church.local',
+                        'created_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        'last_login': '',
+                        'is_active': True,
+                        'must_change_password': True
+                    }
+                    
+                    self.save_user(default_admin)
+                    return True
         except Exception as e:
-            st.error(f"Error creating default admin: {str(e)}")
-            return False
+            # Silently handle errors to prevent login disruption
+            pass
         
         return False
     
@@ -146,11 +149,11 @@ class UserManager:
                                                'email', 'created_date', 'last_login', 'is_active', 'must_change_password'])
             else:
                 users_df = pd.DataFrame(records)
-                # Convert boolean columns
+                # Convert boolean columns properly
                 if 'is_active' in users_df.columns:
-                    users_df['is_active'] = users_df['is_active'].astype(bool)
+                    users_df['is_active'] = users_df['is_active'].apply(lambda x: str(x).lower() in ['true', '1', 'yes'] if x != '' else True)
                 if 'must_change_password' in users_df.columns:
-                    users_df['must_change_password'] = users_df['must_change_password'].astype(bool)
+                    users_df['must_change_password'] = users_df['must_change_password'].apply(lambda x: str(x).lower() in ['true', '1', 'yes'] if x != '' else False)
             
             self._set_cache(cache_key, users_df)
             return users_df
@@ -506,11 +509,13 @@ def show_login():
                     st.rerun()
         return
     
-    # Create default admin if needed (first run)
-    try:
-        st.session_state.user_manager.create_default_admin()
-    except:
-        pass  # Silently continue if there's an issue
+    # Create default admin only if needed (check once per session)
+    if 'admin_check_done' not in st.session_state:
+        try:
+            st.session_state.user_manager.create_default_admin()
+            st.session_state.admin_check_done = True
+        except:
+            pass  # Silently continue if there's an issue
     
     # Login form
     with st.form("login_form"):
@@ -790,9 +795,16 @@ def show_password_change():
                 
                 # Update session user data
                 st.session_state.user['must_change_password'] = False
+                st.session_state.user['password_hash'] = new_hash
+                st.session_state.user['salt'] = new_salt
                 
-                # Clear user cache
-                st.session_state.user_manager._clear_cache("load_users")
+                # Clear user cache to force refresh
+                if hasattr(st.session_state.user_manager, '_clear_cache'):
+                    st.session_state.user_manager._clear_cache("load_users")
+                
+                # Reset admin check to prevent recreation
+                if 'admin_check_done' in st.session_state:
+                    del st.session_state.admin_check_done
                 
                 st.success("Password changed successfully! You can now access the system.")
                 time.sleep(2)
