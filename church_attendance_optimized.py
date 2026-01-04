@@ -1925,7 +1925,7 @@ def show_member_management():
             with col1:
                 membership_number = st.text_input("Membership Number (Optional)")
                 full_name = st.text_input("Full Name *", placeholder="Enter full name")
-                group = st.text_input("Group *", placeholder="e.g., Youth, Adults, Children")
+                group = st.selectbox("Group *", options=["Group 1", "Group 2", "Group 3", "Group 4", "Group 5", "Group 6", "Group 7", "Group 8"])
             
             with col2:
                 email = st.text_input("Email (Optional)", placeholder="email@example.com")
@@ -4666,80 +4666,62 @@ def create_universal_export_section(attendance_df: pd.DataFrame, members_df: pd.
         )
     
     with col2:
-        # PDF export - generate and store in session state
-        pdf_key = f"pdf_data_{section_id}"
-        
-        if st.button("📄 Generate PDF", key=f"pdf_btn_{section_id}", use_container_width=True):
-            try:
-                with st.spinner("Generating PDF..."):
-                    # Extract report data
-                    pdf_report_data = extract_report_data_for_pdf(
-                        attendance_df, members_df, start_date, end_date, 
-                        report_type, selected_groups
-                    )
-                    
-                    # Create PDF
-                    pdf_bytes = create_pdf_report(pdf_report_data, report_type)
-                    
-                    # Store in session state
-                    st.session_state[pdf_key] = pdf_bytes
-                    st.success(f"✅ PDF generated successfully! ({len(pdf_bytes)} bytes)")
-                    
-            except Exception as e:
-                st.error(f"❌ Error generating PDF: {str(e)}")
-                import traceback
-                st.code(traceback.format_exc())
-        
-        # Show download button if PDF exists
-        if pdf_key in st.session_state:
+        # PDF export - direct download approach
+        try:
+            # Pre-generate PDF data for download button
+            pdf_report_data = extract_report_data_for_pdf(
+                attendance_df, members_df, start_date, end_date,
+                report_type, selected_groups
+            )
+            pdf_bytes = create_pdf_report(pdf_report_data, report_type)
+
+            # Single-step download button
             st.download_button(
-                label="📥 Download PDF Report",
-                data=st.session_state[pdf_key],
+                label="📄 Download PDF Report",
+                data=pdf_bytes,
                 file_name=f"{report_type.replace(' ', '_')}_{start_date.strftime('%Y_%m_%d')}.pdf",
                 mime="application/pdf",
                 key=f"download_pdf_{section_id}",
-                use_container_width=True
+                use_container_width=True,
+                help="Click to download the report as PDF"
+            )
+
+        except Exception as e:
+            st.button(
+                "📄 PDF Generation Failed",
+                disabled=True,
+                use_container_width=True,
+                help=f"Error: {str(e)}"
             )
     
     with col3:
-        # HTML export - generate and store in session state
-        html_key = f"html_data_{section_id}"
-        
-        if st.button("🖨️ Generate HTML", key=f"html_btn_{section_id}", use_container_width=True):
-            try:
-                with st.spinner("Generating printable HTML..."):
-                    # Extract report data
-                    pdf_report_data = extract_report_data_for_pdf(
-                        attendance_df, members_df, start_date, end_date, 
-                        report_type, selected_groups
-                    )
-                    
-                    # Create HTML
-                    html_content = generate_printable_report_html(pdf_report_data, report_type)
-                    
-                    # Store in session state
-                    st.session_state[html_key] = html_content
-                    st.success(f"✅ HTML generated successfully! ({len(html_content)} characters)")
-                    
-            except Exception as e:
-                st.error(f"❌ Error generating HTML: {str(e)}")
-                import traceback
-                st.code(traceback.format_exc())
-        
-        # Show download button if HTML exists
-        if html_key in st.session_state:
+        # HTML export - direct download approach
+        try:
+            # Pre-generate HTML data for download button
+            html_report_data = extract_report_data_for_pdf(
+                attendance_df, members_df, start_date, end_date,
+                report_type, selected_groups
+            )
+            html_content = generate_printable_report_html(html_report_data, report_type)
+
+            # Single-step download button
             st.download_button(
-                label="📥 Download HTML (Printable)",
-                data=st.session_state[html_key],
+                label="🖨️ Download HTML (Printable)",
+                data=html_content,
                 file_name=f"{report_type.replace(' ', '_')}_{start_date.strftime('%Y_%m_%d')}_Printable.html",
                 mime="text/html",
                 key=f"download_html_{section_id}",
-                use_container_width=True
+                use_container_width=True,
+                help="Click to download the report as printable HTML"
             )
-            
-            # Show preview
-            with st.expander("📋 Preview Printable Report"):
-                st.components.v1.html(st.session_state[html_key], height=400, scrolling=True)
+
+        except Exception as e:
+            st.button(
+                "🖨️ HTML Generation Failed",
+                disabled=True,
+                use_container_width=True,
+                help=f"Error: {str(e)}"
+            )
     
     with col4:
         # Email functionality - simple approach
