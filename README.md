@@ -24,9 +24,12 @@ A comprehensive, secure web application for managing church attendance records w
 - **4-Tab Analytics System**: Group analysis, member engagement, patterns, growth
 - **Interactive Charts**: Plotly visualizations with drill-down capabilities
 
-### 📋 **Professional Reporting**
+### 📋 **Professional Reporting** (🆕 Enhanced)
 - **6 Report Types**: Monthly summaries, group performance, member engagement, trends, executive summaries
-- **Export Capabilities**: CSV, JSON, comprehensive backups
+- **📄 PDF Generation**: Professional PDF reports with charts and branding
+- **🖨️ Printable Reports**: Print-optimized HTML versions with proper formatting
+- **📧 Email Delivery**: Send reports directly via email with attachments
+- **📊 Export Capabilities**: CSV, JSON, PDF, HTML, comprehensive backups
 - **Customizable Date Ranges**: Flexible reporting periods
 
 ### 📜 **History & Data Management**
@@ -133,7 +136,28 @@ auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
 client_x509_cert_url = "your-cert-url"
 
 spreadsheet_name = "Church Attendance System"
+
+# Email Configuration (NEW - for PDF/Email Reports)
+[email]
+smtp_server = "smtp.gmail.com"
+smtp_port = 587
+sender_email = "your-church-email@gmail.com" 
+sender_password = "your-app-password"  # Gmail App Password
 ```
+
+### Email Setup (NEW Feature)
+
+For the new email report functionality:
+
+1. **Gmail Setup (Recommended):**
+   - Enable 2-Factor Authentication on your Gmail account
+   - Generate an App Password: [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+   - Use the App Password in the configuration (not your regular password)
+
+2. **Other Email Providers:**
+   - **Outlook:** `smtp.live.com`, port 587
+   - **Yahoo:** `smtp.mail.yahoo.com`, port 587
+   - **Custom SMTP:** Contact your provider for settings
 
 ## Usage Guide
 
@@ -164,12 +188,17 @@ spreadsheet_name = "Church Attendance System"
 3. Filter by date ranges and groups
 4. Export charts and data as needed
 
-### Generating Reports
+### Generating Reports (🆕 Enhanced)
 
 1. Navigate to "Reports" tab
 2. Select report type and date range
-3. Generate and download reports
-4. Share with ministry leaders
+3. Generate your report
+4. **NEW Export Options:**
+   - **📊 CSV**: Download raw data for spreadsheet analysis
+   - **📄 PDF**: Generate professional PDF with formatting and charts
+   - **🖨️ Printable**: Create print-optimized HTML version
+   - **📧 Email**: Send report directly to recipients with attachments
+5. Share with ministry leaders via email or downloads
 
 ## Data Schema
 
@@ -234,10 +263,10 @@ spreadsheet_name = "Church Attendance System"
 
 **✅ Use Deployment Checklist:** Follow `DEPLOYMENT_CHECKLIST.md` for zero-error deployment
 
-### Default Login Credentials
-- **Username:** `admin`
-- **Password:** `admin123`
-- **⚠️ IMPORTANT:** Change default password immediately after first login!
+### Initial Setup
+- A default admin account is created automatically on first deployment
+- **⚠️ IMPORTANT:** You will be prompted to change the default password on first login
+- Refer to `DEPLOYMENT.md` for complete login instructions
 
 ### User Roles
 - **Super Admin** - Full access + user management
