@@ -18,6 +18,7 @@ import secrets
 import io
 import base64
 from reportlab.lib import colors
+from reportlab.lib.colors import HexColor
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -3341,11 +3342,24 @@ def generate_monthly_summary_report(attendance_df, members_df, start_date, end_d
         csv_exports["Group Summary"] = group_summary.to_csv(index=False)
     
     csv_exports["Top Attendees"] = top_attendees.to_csv(index=False)
-    
-    create_universal_export_section(
-        attendance_df, members_df, start_date, end_date, 
-        "Monthly Summary Report", selected_groups, csv_exports
-    )
+
+    # Store data in session state for export
+    st.session_state['report_data'] = {
+        'attendance_df': attendance_df,
+        'members_df': members_df,
+        'start_date': start_date,
+        'end_date': end_date,
+        'report_type': "Monthly Summary Report",
+        'selected_groups': selected_groups,
+        'csv_exports': csv_exports
+    }
+
+    # Show export section in expander (not auto-expanded)
+    with st.expander("📥 Export Options", expanded=False):
+        create_universal_export_section(
+            attendance_df, members_df, start_date, end_date,
+            "Monthly Summary Report", selected_groups, csv_exports
+        )
 
 
 def generate_group_performance_report(attendance_df, members_df, start_date, end_date, selected_groups):
@@ -3436,11 +3450,13 @@ def generate_group_performance_report(attendance_df, members_df, start_date, end
     csv_exports = {
         "Group Performance": group_df.to_csv(index=False)
     }
-    
-    create_universal_export_section(
-        attendance_df, members_df, start_date, end_date, 
-        "Group Performance Report", selected_groups, csv_exports
-    )
+
+    # Show export section in expander (not auto-expanded)
+    with st.expander("Export Options", expanded=False):
+        create_universal_export_section(
+            attendance_df, members_df, start_date, end_date,
+            "Group Performance Report", selected_groups, csv_exports
+        )
 
 
 def generate_member_engagement_report(attendance_df, members_df, start_date, end_date, selected_groups):
@@ -3562,11 +3578,13 @@ def generate_member_engagement_report(attendance_df, members_df, start_date, end
     low_engagement_full = member_stats[member_stats['Attendance Rate (%)'] < 50]
     if not low_engagement_full.empty:
         csv_exports["Low Engagement Members"] = low_engagement_full.to_csv(index=False)
-    
-    create_universal_export_section(
-        attendance_df, members_df, start_date, end_date, 
-        "Member Engagement Report", selected_groups, csv_exports
-    )
+
+    # Show export section in expander (not auto-expanded)
+    with st.expander("Export Options", expanded=False):
+        create_universal_export_section(
+            attendance_df, members_df, start_date, end_date,
+            "Member Engagement Report", selected_groups, csv_exports
+        )
 
 
 def generate_attendance_trend_report(attendance_df, start_date, end_date):
@@ -3685,11 +3703,13 @@ def generate_attendance_trend_report(attendance_df, start_date, end_date):
     csv_exports = {
         "Attendance Trends": trend_export.to_csv(index=False)
     }
-    
-    create_universal_export_section(
-        attendance_df, pd.DataFrame(), start_date, end_date, 
-        "Attendance Trend Report", None, csv_exports
-    )
+
+    # Show export section in expander (not auto-expanded)
+    with st.expander("Export Options", expanded=False):
+        create_universal_export_section(
+            attendance_df, pd.DataFrame(), start_date, end_date,
+            "Attendance Trend Report", None, csv_exports
+        )
 
 
 def generate_executive_summary_report(attendance_df, members_df, start_date, end_date):
@@ -3811,11 +3831,13 @@ def generate_executive_summary_report(attendance_df, members_df, start_date, end
     csv_exports = {
         "Executive Summary": attendance_df.to_csv(index=False) if not attendance_df.empty else pd.DataFrame().to_csv(index=False)
     }
-    
-    create_universal_export_section(
-        attendance_df, members_df, start_date, end_date, 
-        "Executive Summary Report", None, csv_exports
-    )
+
+    # Show export section in expander (not auto-expanded)
+    with st.expander("Export Options", expanded=False):
+        create_universal_export_section(
+            attendance_df, members_df, start_date, end_date,
+            "Executive Summary Report", None, csv_exports
+        )
 
 
 def generate_custom_date_range_report(attendance_df, members_df, start_date, end_date, selected_groups):
@@ -3867,11 +3889,13 @@ def generate_custom_date_range_report(attendance_df, members_df, start_date, end
             "Custom Report": export_data.to_csv(index=False),
             "Group Summary": group_df.to_csv(index=False)
         }
-        
-        create_universal_export_section(
-            attendance_df, members_df, start_date, end_date, 
-            "Custom Date Range Report", selected_groups, csv_exports
-        )
+
+        # Show export section in expander (not auto-expanded)
+        with st.expander("Export Options", expanded=False):
+            create_universal_export_section(
+                attendance_df, members_df, start_date, end_date,
+                "Custom Date Range Report", selected_groups, csv_exports
+            )
     else:
         st.warning("No attendance data found for the selected period and groups.")
 
@@ -4744,27 +4768,32 @@ def create_pdf_report(report_data: dict, report_type: str) -> bytes:
     doc = SimpleDocTemplate(buffer, pagesize=A4)
     styles = getSampleStyleSheet()
     story = []
-    
+
+    # Church color scheme
+    tac_navy = HexColor('#060245')
+    tac_orange = HexColor('#d43c18')
+    tac_gold = HexColor('#af9659')
+
     # Custom styles
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
         fontSize=18,
-        textColor=colors.darkblue,
+        textColor=tac_navy,
         spaceAfter=30,
         alignment=1  # Center alignment
     )
-    
+
     subtitle_style = ParagraphStyle(
         'CustomSubtitle',
         parent=styles['Heading2'],
         fontSize=14,
-        textColor=colors.darkgreen,
+        textColor=tac_orange,
         spaceAfter=12
     )
     
     # Header with church info
-    story.append(Paragraph("Church Attendance Management System", title_style))
+    story.append(Paragraph("TAC - Mamprobi Central Attendance System", title_style))
     story.append(Spacer(1, 12))
     story.append(Paragraph(f"{report_type}", subtitle_style))
     story.append(Paragraph(f"Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['Normal']))
@@ -4784,14 +4813,14 @@ def create_pdf_report(report_data: dict, report_type: str) -> bytes:
         
         metrics_table = Table(metrics_data, colWidths=[3*inch, 2*inch])
         metrics_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+            ('BACKGROUND', (0, 0), (-1, 0), tac_gold),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 12),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ('GRID', (0, 0), (-1, -1), 1, HexColor('#cccccc'))
         ]))
         story.append(metrics_table)
         story.append(Spacer(1, 20))
@@ -4809,16 +4838,16 @@ def create_pdf_report(report_data: dict, report_type: str) -> bytes:
                 # Create table
                 pdf_table = Table(table_rows)
                 pdf_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
+                    ('BACKGROUND', (0, 0), (-1, 0), tac_navy),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                     ('FONTSIZE', (0, 0), (-1, 0), 10),
                     ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                     ('BACKGROUND', (0, 1), (-1, -1), colors.lightgrey),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('GRID', (0, 0), (-1, -1), 1, HexColor('#cccccc')),
                     ('FONTSIZE', (0, 1), (-1, -1), 8),
-                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, HexColor('#f5f5f5')])
                 ]))
                 story.append(pdf_table)
             else:
@@ -4835,7 +4864,7 @@ def create_pdf_report(report_data: dict, report_type: str) -> bytes:
     
     # Footer
     story.append(Spacer(1, 30))
-    story.append(Paragraph("This report was automatically generated by the Church Attendance Management System.", 
+    story.append(Paragraph("This report was automatically generated by the Attendance System.",
                           styles['Italic']))
     
     doc.build(story)
@@ -4863,12 +4892,12 @@ def generate_printable_report_html(report_data: dict, report_type: str) -> str:
             }}
             .header {{
                 text-align: center;
-                border-bottom: 2px solid #4CAF50;
+                border-bottom: 3px solid #d43c18;
                 padding-bottom: 20px;
                 margin-bottom: 30px;
             }}
             .header h1 {{
-                color: #2E7D32;
+                color: #060245;
                 margin: 0;
                 font-size: 24px;
             }}
@@ -4884,7 +4913,7 @@ def generate_printable_report_html(report_data: dict, report_type: str) -> str:
                 margin: 20px 0;
             }}
             .metric-card {{
-                border: 1px solid #ddd;
+                border: 1px solid #af9659;
                 border-radius: 5px;
                 padding: 15px;
                 text-align: center;
@@ -4893,7 +4922,7 @@ def generate_printable_report_html(report_data: dict, report_type: str) -> str:
             .metric-value {{
                 font-size: 24px;
                 font-weight: bold;
-                color: #2E7D32;
+                color: #060245;
             }}
             .metric-label {{
                 font-size: 14px;
@@ -4911,24 +4940,25 @@ def generate_printable_report_html(report_data: dict, report_type: str) -> str:
                 text-align: left;
             }}
             th {{
-                background-color: #4CAF50;
+                background-color: #060245;
                 color: white;
                 font-weight: bold;
             }}
             tr:nth-child(even) {{
-                background-color: #f2f2f2;
+                background-color: #f5f5f5;
             }}
             .section-title {{
-                color: #2E7D32;
-                border-bottom: 1px solid #4CAF50;
+                color: #d43c18;
+                border-bottom: 2px solid #af9659;
                 padding-bottom: 5px;
                 margin: 25px 0 15px 0;
             }}
             .summary-list {{
-                background-color: #f0f8f0;
+                background-color: #f9f6f0;
                 padding: 15px;
                 border-radius: 5px;
                 margin: 15px 0;
+                border-left: 3px solid #d43c18;
             }}
             .summary-list ul {{
                 margin: 0;
@@ -4946,8 +4976,8 @@ def generate_printable_report_html(report_data: dict, report_type: str) -> str:
     </head>
     <body>
         <div class="header">
-            <h1>Church Attendance Management System</h1>
-            <h2>{report_type}</h2>
+            <h1>TAC - Mamprobi Central Attendance System</h1>
+            <h2 style="margin-top: 20px;">{report_type}</h2>
             <p><strong>Generated on:</strong> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
             {'<p><strong>Report Period:</strong> ' + report_data.get('period', 'N/A') + '</p>' if 'period' in report_data else ''}
         </div>
@@ -4992,7 +5022,7 @@ def generate_printable_report_html(report_data: dict, report_type: str) -> str:
     # Footer
     html_template += """
         <div class="footer">
-            <p>This report was automatically generated by the Church Attendance Management System.</p>
+            <p>This report was automatically generated by the Attendance System.</p>
         </div>
     </body>
     </html>
@@ -5025,7 +5055,7 @@ def send_report_email(recipient_email: str, report_data: dict, report_type: str,
         body = f"""
 Dear Team,
 
-Please find attached the {report_type} generated from the Church Attendance Management System.
+Please find attached the {report_type} generated from the Attendance System.
 
 Report Details:
 - Type: {report_type}
@@ -5033,7 +5063,7 @@ Report Details:
 - Period: {report_data.get('period', 'N/A')}
 
 Best regards,
-Church Attendance Management System
+TAC - Mamprobi Central Attendance System
         """
         
         msg.attach(MIMEText(body, 'plain'))
@@ -5077,7 +5107,7 @@ def create_universal_export_section(attendance_df: pd.DataFrame, members_df: pd.
                                    start_date: date, end_date: date, report_type: str,
                                    selected_groups: List[str] = None, additional_csv_data: dict = None):
     """Create a universal export section for all report types"""
-    st.subheader("📤 Export & Share Report")
+    st.subheader("Export & Share Report")
     
     # Create unique identifier for this export section
     section_id = hash(f"{report_type}_{start_date}_{end_date}_{str(selected_groups)}")
@@ -5235,70 +5265,222 @@ sender_password = "your-app-password"
                     )
 
 
-def extract_report_data_for_pdf(attendance_df: pd.DataFrame, members_df: pd.DataFrame, 
+def extract_report_data_for_pdf(attendance_df: pd.DataFrame, members_df: pd.DataFrame,
                                start_date: date, end_date: date, report_type: str,
                                selected_groups: List[str] = None) -> dict:
-    """Extract and structure report data for PDF generation"""
+    """Extract and structure report data for PDF generation based on report type"""
     report_data = {
+        'report_type': report_type,
         'period': f"{start_date.strftime('%B %d, %Y')} - {end_date.strftime('%B %d, %Y')}",
         'metrics': {},
         'tables': {},
         'summary': []
     }
-    
+
     if attendance_df.empty:
         report_data['summary'] = ["No attendance data available for the selected period."]
         return report_data
-    
-    # Common metrics
+
+    # Common metrics used across reports
     total_attendance = len(attendance_df)
     unique_attendees = attendance_df['Full Name'].nunique()
     unique_days = attendance_df['Date'].dt.date.nunique()
     avg_daily_attendance = total_attendance / unique_days if unique_days > 0 else 0
-    
-    report_data['metrics'] = {
-        'Total Attendance Records': total_attendance,
-        'Unique Attendees': unique_attendees,
-        'Active Days': unique_days,
-        'Average Daily Attendance': f"{avg_daily_attendance:.1f}"
-    }
-    
-    # Daily breakdown
-    daily_attendance = attendance_df.groupby(attendance_df['Date'].dt.date).size().reset_index(name='Count')
-    daily_attendance.columns = ['Date', 'Attendance Count']
-    daily_attendance['Date'] = daily_attendance['Date'].astype(str)
-    report_data['tables']['Daily Attendance Breakdown'] = daily_attendance
-    
-    # Group performance if available
-    if 'Group' in attendance_df.columns and not attendance_df['Group'].isna().all():
-        group_summary = attendance_df.groupby('Group').agg({
-            'Full Name': 'nunique',
-            'Date': 'count'
-        }).reset_index()
-        group_summary.columns = ['Group', 'Unique Members', 'Total Attendance']
-        report_data['tables']['Group Performance'] = group_summary
-    
-    # Top attendees
-    top_attendees = attendance_df.groupby(['Full Name', 'Group']).size().reset_index(name='Attendance Count')
-    top_attendees = top_attendees.sort_values('Attendance Count', ascending=False).head(10)
-    report_data['tables']['Top 10 Attendees'] = top_attendees
-    
-    # Generate summary insights
-    if unique_days > 0:
-        participation_rate = (unique_attendees / len(members_df)) * 100 if not members_df.empty else 0
-        
-        summary_insights = [
-            f"Total of {total_attendance} attendance records were recorded over {unique_days} active days",
-            f"Average daily attendance was {avg_daily_attendance:.1f} people",
-            f"Participation rate: {participation_rate:.1f}% of registered members attended during this period"
+    total_members = len(members_df) if not members_df.empty else 0
+    participation_rate = (unique_attendees / total_members * 100) if total_members > 0 else 0
+
+    # Extract data based on report type
+    if report_type == "Monthly Summary Report":
+        # Monthly aggregation
+        report_data['metrics'] = {
+            'Total Attendance': total_attendance,
+            'Unique Attendees': unique_attendees,
+            'Active Days': unique_days,
+            'Average Daily': f"{avg_daily_attendance:.1f}",
+            'Participation Rate': f"{participation_rate:.1f}%"
+        }
+
+        # Weekly breakdown within the month
+        attendance_df['Week'] = attendance_df['Date'].dt.strftime('Week %U')
+        weekly = attendance_df.groupby('Week').size().reset_index(name='Attendance')
+        report_data['tables']['Weekly Breakdown'] = weekly
+
+        # Daily attendance
+        daily = attendance_df.groupby(attendance_df['Date'].dt.date).size().reset_index(name='Count')
+        daily.columns = ['Date', 'Attendance']
+        daily['Date'] = daily['Date'].astype(str)
+        report_data['tables']['Daily Attendance'] = daily
+
+        # Top attendees
+        top = attendance_df.groupby('Full Name').size().reset_index(name='Days Attended')
+        top = top.sort_values('Days Attended', ascending=False).head(10)
+        report_data['tables']['Top Attendees'] = top
+
+        report_data['summary'] = [
+            f"Monthly attendance totaled {total_attendance} records across {unique_days} days",
+            f"Average daily attendance: {avg_daily_attendance:.1f} people",
+            f"{participation_rate:.1f}% of registered members participated"
         ]
-        
+
+    elif report_type == "Group Performance Report":
         if 'Group' in attendance_df.columns:
-            most_active_group = attendance_df['Group'].value_counts().index[0] if len(attendance_df['Group'].value_counts()) > 0 else 'N/A'
-            summary_insights.append(f"Most active group: {most_active_group}")
-        
-        report_data['summary'] = summary_insights
-    
+            # Group-focused metrics
+            num_groups = attendance_df['Group'].nunique()
+            report_data['metrics'] = {
+                'Total Groups': num_groups,
+                'Total Attendance': total_attendance,
+                'Average per Group': f"{total_attendance/num_groups:.1f}" if num_groups > 0 else '0'
+            }
+
+            # Detailed group breakdown
+            group_stats = attendance_df.groupby('Group').agg({
+                'Full Name': 'nunique',
+                'Date': 'count'
+            }).reset_index()
+            group_stats.columns = ['Group', 'Unique Members', 'Total Attendance']
+            group_stats['Avg Attendance'] = (group_stats['Total Attendance'] / unique_days).round(1)
+            report_data['tables']['Group Performance'] = group_stats
+
+            # Member distribution by group
+            if not members_df.empty and 'Group' in members_df.columns:
+                member_dist = members_df.groupby('Group').size().reset_index(name='Total Members')
+                merged = pd.merge(group_stats, member_dist, on='Group', how='left')
+                merged['Participation %'] = ((merged['Unique Members'] / merged['Total Members']) * 100).round(1)
+                report_data['tables']['Group Participation'] = merged[['Group', 'Total Members', 'Unique Members', 'Participation %']]
+
+            most_active = group_stats.loc[group_stats['Total Attendance'].idxmax(), 'Group']
+            report_data['summary'] = [
+                f"Analysis of {num_groups} groups over {unique_days} days",
+                f"Most active group: {most_active}",
+                f"Average group attendance: {total_attendance/num_groups:.1f} records"
+            ]
+        else:
+            report_data['summary'] = ["Group information not available in attendance data"]
+
+    elif report_type == "Member Engagement Report":
+        # Engagement level categorization
+        member_attendance = attendance_df.groupby('Full Name').size()
+
+        high_engaged = len(member_attendance[member_attendance >= unique_days * 0.75])
+        moderate_engaged = len(member_attendance[(member_attendance >= unique_days * 0.5) & (member_attendance < unique_days * 0.75)])
+        low_engaged = len(member_attendance[(member_attendance > 0) & (member_attendance < unique_days * 0.5)])
+
+        report_data['metrics'] = {
+            'Highly Engaged (75%+)': high_engaged,
+            'Moderately Engaged (50-75%)': moderate_engaged,
+            'Low Engagement (<50%)': low_engaged,
+            'Total Active Members': unique_attendees,
+            'Inactive Members': total_members - unique_attendees if total_members > 0 else 0
+        }
+
+        # Individual engagement scores
+        engagement = member_attendance.reset_index()
+        engagement.columns = ['Member', 'Attendance Count']
+        engagement['Engagement %'] = ((engagement['Attendance Count'] / unique_days) * 100).round(1)
+        engagement = engagement.sort_values('Attendance Count', ascending=False)
+        report_data['tables']['Member Engagement'] = engagement
+
+        # Members needing follow-up
+        if not members_df.empty:
+            inactive = members_df[~members_df['Full Name'].isin(attendance_df['Full Name'])]
+            if not inactive.empty:
+                report_data['tables']['Inactive Members'] = inactive[['Full Name', 'Group']].head(20)
+
+        report_data['summary'] = [
+            f"Engagement analysis of {total_members} total members",
+            f"{unique_attendees} members attended during this period ({participation_rate:.1f}%)",
+            f"{high_engaged} members highly engaged (attended 75%+ of days)"
+        ]
+
+    elif report_type == "Attendance Trend Report":
+        # Trend-focused analysis
+        report_data['metrics'] = {
+            'Period Span': f"{unique_days} days",
+            'Total Attendance': total_attendance,
+            'Daily Average': f"{avg_daily_attendance:.1f}",
+            'Peak Attendance': attendance_df.groupby(attendance_df['Date'].dt.date).size().max()
+        }
+
+        # Daily trend
+        daily_trend = attendance_df.groupby(attendance_df['Date'].dt.date).size().reset_index(name='Attendance')
+        daily_trend.columns = ['Date', 'Attendance']
+        daily_trend['Date'] = daily_trend['Date'].astype(str)
+        daily_trend['7-Day Avg'] = daily_trend['Attendance'].rolling(window=7, min_periods=1).mean().round(1)
+        report_data['tables']['Daily Attendance Trend'] = daily_trend
+
+        # Day of week pattern
+        attendance_df['DayOfWeek'] = attendance_df['Date'].dt.day_name()
+        dow_pattern = attendance_df.groupby('DayOfWeek').size().reset_index(name='Average Attendance')
+        report_data['tables']['Day of Week Pattern'] = dow_pattern
+
+        report_data['summary'] = [
+            f"Trend analysis over {unique_days} days",
+            f"Average daily attendance: {avg_daily_attendance:.1f}",
+            f"Peak attendance: {attendance_df.groupby(attendance_df['Date'].dt.date).size().max()}"
+        ]
+
+    elif report_type == "Executive Summary":
+        # High-level KPIs
+        report_data['metrics'] = {
+            'Total Members': total_members,
+            'Active Members': unique_attendees,
+            'Participation Rate': f"{participation_rate:.1f}%",
+            'Total Attendance': total_attendance,
+            'Daily Average': f"{avg_daily_attendance:.1f}",
+            'Active Days': unique_days
+        }
+
+        # Key statistics table
+        if 'Group' in attendance_df.columns:
+            group_summary = attendance_df.groupby('Group').agg({
+                'Full Name': 'nunique',
+                'Date': 'count'
+            }).reset_index()
+            group_summary.columns = ['Group', 'Active Members', 'Attendance']
+            report_data['tables']['Group Summary'] = group_summary
+
+        # Top performers
+        top = attendance_df.groupby('Full Name').size().reset_index(name='Attendance')
+        top = top.sort_values('Attendance', ascending=False).head(5)
+        report_data['tables']['Top 5 Attendees'] = top
+
+        report_data['summary'] = [
+            f"Executive summary for {start_date.strftime('%B %Y')}",
+            f"Overall participation: {participation_rate:.1f}% ({unique_attendees}/{total_members} members)",
+            f"Average daily attendance: {avg_daily_attendance:.1f} people"
+        ]
+
+    else:  # Custom Date Range Report or default
+        report_data['metrics'] = {
+            'Total Attendance': total_attendance,
+            'Unique Attendees': unique_attendees,
+            'Active Days': unique_days,
+            'Daily Average': f"{avg_daily_attendance:.1f}",
+            'Participation Rate': f"{participation_rate:.1f}%"
+        }
+
+        # Daily breakdown
+        daily = attendance_df.groupby(attendance_df['Date'].dt.date).size().reset_index(name='Attendance')
+        daily.columns = ['Date', 'Attendance']
+        daily['Date'] = daily['Date'].astype(str)
+        report_data['tables']['Daily Breakdown'] = daily
+
+        # Group summary if available
+        if 'Group' in attendance_df.columns:
+            group = attendance_df.groupby('Group').size().reset_index(name='Attendance')
+            report_data['tables']['Group Summary'] = group
+
+        # Top attendees
+        top = attendance_df.groupby('Full Name').size().reset_index(name='Days Attended')
+        top = top.sort_values('Days Attended', ascending=False).head(10)
+        report_data['tables']['Top Attendees'] = top
+
+        report_data['summary'] = [
+            f"Custom period analysis: {unique_days} days",
+            f"Total attendance: {total_attendance} records",
+            f"Participation: {participation_rate:.1f}% of members"
+        ]
+
     return report_data
 
 
