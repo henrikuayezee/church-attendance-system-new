@@ -33,11 +33,278 @@ import extra_streamlit_components as stx
 
 # Configure Streamlit page
 st.set_page_config(
-    page_title="Church Attendance System",
-    page_icon="⛪",
+    page_title="The Apostolic Church Ghana - Mamprobi Central",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Custom CSS for The Apostolic Church Ghana branding
+st.markdown("""
+<style>
+    /* The Apostolic Church Ghana Color Scheme */
+    :root {
+        --tac-navy: #060245;
+        --tac-navy-dark: #05032c;
+        --tac-orange: #d43c18;
+        --tac-orange-hover: #d94b38;
+        --tac-gold: #af9659;
+        --tac-light-gray: #f4f4f4;
+        --tac-white: #ffffff;
+    }
+
+    /* Main app background */
+    .main {
+        background-color: var(--tac-light-gray);
+    }
+
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, var(--tac-navy) 0%, var(--tac-navy-dark) 100%);
+    }
+
+    [data-testid="stSidebar"] * {
+        color: var(--tac-white) !important;
+    }
+
+    /* Sidebar buttons */
+    [data-testid="stSidebar"] button {
+        background-color: var(--tac-orange);
+        border: none;
+        border-radius: 5px;
+        color: var(--tac-white) !important;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    [data-testid="stSidebar"] button:hover {
+        background-color: var(--tac-orange-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(212, 60, 24, 0.3);
+    }
+
+    /* Primary buttons */
+    .stButton > button[kind="primary"] {
+        background-color: var(--tac-orange);
+        border: none;
+        border-radius: 5px;
+        color: var(--tac-white);
+        font-weight: 600;
+        padding: 0.5rem 2rem;
+        transition: all 0.3s ease;
+    }
+
+    .stButton > button[kind="primary"]:hover {
+        background-color: var(--tac-orange-hover);
+        box-shadow: 0 4px 12px rgba(212, 60, 24, 0.4);
+        transform: translateY(-2px);
+    }
+
+    /* Secondary buttons */
+    .stButton > button {
+        background-color: var(--tac-navy);
+        border: 2px solid var(--tac-gold);
+        border-radius: 5px;
+        color: var(--tac-white);
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .stButton > button:hover {
+        background-color: var(--tac-navy-dark);
+        border-color: var(--tac-orange);
+        transform: translateY(-1px);
+    }
+
+    /* Headers */
+    h1, h2, h3 {
+        color: var(--tac-navy) !important;
+        font-weight: 700;
+    }
+
+    h1 {
+        border-bottom: 3px solid var(--tac-orange);
+        padding-bottom: 0.5rem;
+    }
+
+    /* Metrics and cards */
+    [data-testid="stMetricValue"] {
+        color: var(--tac-navy);
+        font-weight: 700;
+    }
+
+    [data-testid="stMetricLabel"] {
+        color: var(--tac-gold);
+        font-weight: 600;
+    }
+
+    /* Success messages */
+    .stSuccess {
+        background-color: rgba(175, 150, 89, 0.1);
+        border-left: 4px solid var(--tac-gold);
+    }
+
+    /* Error messages */
+    .stError {
+        background-color: rgba(212, 60, 24, 0.1);
+        border-left: 4px solid var(--tac-orange);
+    }
+
+    /* Info messages */
+    .stInfo {
+        background-color: rgba(6, 2, 69, 0.1);
+        border-left: 4px solid var(--tac-navy);
+    }
+
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: var(--tac-white);
+        border-bottom: 2px solid var(--tac-gold);
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        background-color: transparent;
+        border: none;
+        color: var(--tac-navy);
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+    }
+
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: rgba(6, 2, 69, 0.05);
+    }
+
+    .stTabs [aria-selected="true"] {
+        background-color: var(--tac-orange);
+        color: var(--tac-white) !important;
+        border-radius: 5px 5px 0 0;
+    }
+
+    /* Data tables */
+    .dataframe {
+        border: 1px solid var(--tac-gold) !important;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .dataframe thead tr {
+        background-color: var(--tac-navy) !important;
+        color: var(--tac-white) !important;
+    }
+
+    .dataframe tbody tr:nth-child(even) {
+        background-color: var(--tac-light-gray);
+    }
+
+    /* Input fields */
+    .stTextInput > div > div > input,
+    .stSelectbox > div > div > select,
+    .stDateInput > div > div > input {
+        border: 2px solid var(--tac-gold);
+        border-radius: 5px;
+        transition: all 0.3s ease;
+    }
+
+    .stTextInput > div > div > input:focus,
+    .stSelectbox > div > div > select:focus,
+    .stDateInput > div > div > input:focus {
+        border-color: var(--tac-orange);
+        box-shadow: 0 0 0 2px rgba(212, 60, 24, 0.2);
+    }
+
+    /* Download buttons */
+    .stDownloadButton > button {
+        background-color: var(--tac-gold);
+        color: var(--tac-navy);
+        font-weight: 600;
+        border: none;
+        border-radius: 5px;
+        transition: all 0.3s ease;
+    }
+
+    .stDownloadButton > button:hover {
+        background-color: var(--tac-orange);
+        color: var(--tac-white);
+        transform: translateY(-2px);
+    }
+
+    /* Dividers */
+    hr {
+        border-color: var(--tac-gold);
+        opacity: 0.3;
+    }
+
+    /* Sidebar Navigation Radio Buttons */
+    [data-testid="stSidebar"] .stRadio > label {
+        color: var(--tac-gold) !important;
+        font-weight: 700 !important;
+        font-size: 13px !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.75rem;
+    }
+
+    [data-testid="stSidebar"] .stRadio > div {
+        gap: 6px;
+    }
+
+    [data-testid="stSidebar"] .stRadio label {
+        background-color: transparent;
+        padding: 0.65rem 1rem;
+        border-radius: 4px;
+        border-left: 3px solid transparent;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    [data-testid="stSidebar"] .stRadio label:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-left-color: rgba(175, 150, 89, 0.3);
+    }
+
+    [data-testid="stSidebar"] .stRadio label[data-checked="true"] {
+        background-color: rgba(212, 60, 24, 0.15);
+        border-left-color: var(--tac-orange);
+        font-weight: 500;
+    }
+
+    /* Sidebar Subheaders */
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {
+        color: var(--tac-gold) !important;
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid rgba(175, 150, 89, 0.3);
+        padding-bottom: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    /* Sidebar Captions */
+    [data-testid="stSidebar"] .caption {
+        color: rgba(255, 255, 255, 0.7) !important;
+        font-size: 12px;
+    }
+
+    /* Logout Button Enhancement */
+    [data-testid="stSidebar"] button:first-of-type {
+        background: linear-gradient(135deg, var(--tac-orange) 0%, #b82f0f 100%);
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    /* Connection Status */
+    [data-testid="stSidebar"] .stSuccess,
+    [data-testid="stSidebar"] .stError {
+        border-radius: 6px;
+        padding: 0.5rem;
+        margin: 0.5rem 0;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # Rate limiting decorator
 def rate_limit(delay_seconds: float = 1.0):
@@ -796,20 +1063,43 @@ def show_login(cookie_manager):
         <style>
         .login-header {
             text-align: center;
-            padding: 20px 0;
+            padding: 30px 0 20px 0;
+            background: linear-gradient(135deg, #060245 0%, #05032c 100%);
+            color: white;
+            border-radius: 10px 10px 0 0;
+            margin: -1rem -1rem 2rem -1rem;
+        }
+        .church-name {
+            font-size: 28px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 5px;
+        }
+        .church-branch {
+            font-size: 18px;
+            color: #af9659;
+            font-weight: 500;
             margin-bottom: 10px;
         }
         .login-subtitle {
             text-align: center;
-            color: #666;
+            color: #d43c18;
+            font-size: 16px;
+            font-weight: 600;
             margin-bottom: 30px;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # Centered header (appears only once)
-    st.markdown('<div class="login-header"><h1>🔐 Church Attendance System</h1></div>', unsafe_allow_html=True)
-    st.markdown('<p class="login-subtitle">Please sign in to access the system</p>', unsafe_allow_html=True)
+    # Centered header with church branding
+    st.markdown('''
+        <div class="login-header">
+            <div style="font-size: 48px; margin-bottom: 10px;"></div>
+            <div class="church-name">THE APOSTOLIC CHURCH GHANA</div>
+            <div class="church-branch">Mamprobi Central Assembly</div>
+        </div>
+    ''', unsafe_allow_html=True)
+    st.markdown('<p class="login-subtitle">Attendance Management System - Sign In</p>', unsafe_allow_html=True)
 
     # Initialize managers if needed
     if 'sheets_manager' not in st.session_state:
@@ -823,7 +1113,7 @@ def show_login(cookie_manager):
         # Center the error message and button
         _, col_center, _ = st.columns([1, 2, 1])
         with col_center:
-            st.error("❌ System not connected to Google Sheets")
+            st.error("System not connected to Google Sheets")
             if st.button("🔄 Connect to Google Sheets", use_container_width=True):
                 with st.spinner("Connecting..."):
                     if st.session_state.sheets_manager.initialize_connection():
@@ -847,13 +1137,15 @@ def show_login(cookie_manager):
     with col_center:
         # Login form
         with st.form("login_form"):
-            st.subheader("👤 Sign In")
+            st.subheader("Sign In")
 
             username = st.text_input("Username", placeholder="Enter your username", label_visibility="visible")
             password = st.text_input("Password", type="password", placeholder="Enter your password", label_visibility="visible")
-            remember_me = st.checkbox("Remember me (stay logged in for 30 days)", value=True)
+            # Temporarily disabled due to cookie issues
+            # remember_me = st.checkbox("Remember me (stay logged in for 30 days)", value=False)
+            remember_me = False  # Always false for now
 
-            submitted = st.form_submit_button("🔑 Sign In", use_container_width=True, type="primary")
+            submitted = st.form_submit_button("Sign In", use_container_width=True, type="primary")
 
             if submitted:
                 if not username or not password:
@@ -864,6 +1156,12 @@ def show_login(cookie_manager):
                     user_data = st.session_state.user_manager.authenticate_user(username, password)
 
                     if user_data:
+                        # Delete old session cookie (without setting logout marker)
+                        try:
+                            cookie_manager.delete('church_att_session')
+                        except:
+                            pass
+
                         # Set session state for authenticated user
                         st.session_state.authenticated = True
                         st.session_state.user = user_data
@@ -880,11 +1178,53 @@ def show_login(cookie_manager):
                                 auth_token = hashlib.sha256(f"{username}:{password_hash}".encode()).hexdigest()
                                 save_auth_cookie(cookie_manager, username, auth_token, remember_days=30)
 
+                        # Clear the logout marker cookie (allow auto-login for this account now)
+                        try:
+                            cookie_manager.delete('church_att_logged_out')
+                        except:
+                            pass
+
+                        # Clear the just_logged_out flag if it exists
+                        if 'just_logged_out' in st.session_state:
+                            del st.session_state.just_logged_out
+
                         st.success(f"Welcome, {user_data['full_name']}!")
                         time.sleep(1)  # Brief pause to show success message
                         st.rerun()
                     else:
                         st.error("Invalid username or password")
+
+        # Troubleshooting section
+        st.divider()
+        with st.expander("Having trouble logging in?"):
+            st.write("If you're being automatically logged into the wrong account:")
+
+            if st.button("Clear All Login Data", use_container_width=True):
+                try:
+                    from datetime import timedelta
+
+                    # Clear all authentication cookies
+                    cookie_manager.delete('church_att_session')
+
+                    # Set both to empty with past expiry
+                    past_date = datetime.now() - timedelta(days=1)
+                    cookie_manager.set(cookie='church_att_session', val='', expires_at=past_date)
+
+                    # Set logout marker to prevent auto-login
+                    future_date = datetime.now() + timedelta(minutes=10)
+                    cookie_manager.set(cookie='church_att_logged_out', val='true', expires_at=future_date)
+
+                    # Mark in session that we're clearing data
+                    st.session_state.clear_login_data = True
+
+                    st.success("All login data cleared!")
+                    st.warning("**IMPORTANT: Now manually refresh this page (press F5 or Ctrl+R) to complete the process.**")
+                    st.info("Do NOT click any buttons. Just refresh the page.")
+                    st.stop()  # Stop execution, don't auto-rerun
+                except Exception as e:
+                    st.error(f"Error clearing data: {str(e)}")
+
+            st.info("💡 **Tip:** Uncheck 'Remember me' when logging in to prevent automatic login.")
 
     # System information
     st.divider()
@@ -893,18 +1233,18 @@ def show_login(cookie_manager):
     _, col_info, _ = st.columns([1, 2, 1])
 
     with col_info:
-        st.subheader("ℹ️ System Information")
+        st.subheader("System Information")
 
         st.write("**Connection Status:**")
         if st.session_state.sheets_manager.connection_status:
-            st.success("✅ Connected to Google Sheets")
+            st.success("Connected to Google Sheets")
         else:
-            st.error("❌ Not connected to Google Sheets")
+            st.error("Not connected to Google Sheets")
 
         st.write("**Version:** Church Attendance System v1.0")
         st.write("**Security:** Password-protected access")
 
-        with st.expander("👥 User Roles Available"):
+        with st.expander("User Roles Available"):
             for role_key, role_info in UserManager.ROLES.items():
                 st.write(f"• **{role_info['name']}**: {role_info['description']}")
 
@@ -985,9 +1325,29 @@ def check_auth_cookie(cookie_manager, user_manager):
 def clear_auth_cookies(cookie_manager):
     """Clear authentication cookies on logout"""
     try:
+        from datetime import timedelta
+
+        # Delete the authentication cookie
         cookie_manager.delete('church_att_session')
-    except:
-        pass
+
+        # Set it to an empty value with past expiry to ensure browser removes it
+        past_date = datetime.now() - timedelta(days=1)
+        cookie_manager.set(
+            cookie='church_att_session',
+            val='',
+            expires_at=past_date
+        )
+
+        # Set a "logged_out" marker cookie that persists across page reloads
+        # This prevents auto-login even after page refresh
+        logout_expiry = datetime.now() + timedelta(minutes=5)  # Lasts 5 minutes
+        cookie_manager.set(
+            cookie='church_att_logged_out',
+            val='true',
+            expires_at=logout_expiry
+        )
+    except Exception as e:
+        pass  # Continue even if cookie clearing fails
 
 
 def main():
@@ -1011,18 +1371,12 @@ def main():
         if 'user_manager' not in st.session_state:
             st.session_state.user_manager = UserManager(st.session_state.sheets_manager)
 
-        # Check for saved authentication cookie
-        # Note: cookies may not be available on first render
-        # Only check cookies if connection is established and user didn't just logout
-        if 'just_logged_out' not in st.session_state or not st.session_state.just_logged_out:
-            try:
-                if st.session_state.sheets_manager.ensure_connection():
-                    if check_auth_cookie(cookie_manager, st.session_state.user_manager):
-                        st.rerun()
-            except:
-                pass  # Cookies not ready yet or connection failed, continue to login
-        else:
-            # Clear the logout flag after one check
+        # TEMPORARILY DISABLED: Auto-login from cookies
+        # Having issues with cookie persistence causing login conflicts
+        # Users must manually login each time for now
+
+        # Clear any logout flags if they exist
+        if 'just_logged_out' in st.session_state:
             del st.session_state.just_logged_out
 
     # Show login if not authenticated
@@ -1042,44 +1396,63 @@ def main():
         show_password_change()
         return
     
-    # Sidebar with user info
-    st.sidebar.title("⛪ Church Attendance")
-    
+    # Sidebar with church branding
+    st.sidebar.markdown("""
+        <div style='text-align: center; padding: 1.5rem 1rem; margin-bottom: 1.5rem; border-bottom: 2px solid rgba(175, 150, 89, 0.3);'>
+            <div style='font-size: 16px; font-weight: 700; color: #ffffff; line-height: 1.3; letter-spacing: 0.5px;'>
+                THE APOSTOLIC CHURCH GHANA
+            </div>
+            <div style='font-size: 13px; color: #af9659; font-weight: 500; margin-top: 6px;'>
+                Mamprobi Central Assembly
+            </div>
+            <div style='font-size: 11px; color: #d43c18; font-weight: 600; margin-top: 8px; letter-spacing: 0.5px;'>
+                ATTENDANCE SYSTEM
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.sidebar.markdown("---")
+
     # User information section
     user = st.session_state.user
     role_info = st.session_state.user_manager.get_user_role_info(user['role'])
-    
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("👤 User Info")
+
+    st.sidebar.subheader("User Profile")
     st.sidebar.write(f"**{user['full_name']}**")
-    st.sidebar.write(f"Role: {role_info.get('name', user['role'])}")
-    st.sidebar.write(f"Username: {user['username']}")
-    
+    st.sidebar.caption(f"Role: {role_info.get('name', user['role'])}")
+    st.sidebar.caption(f"@{user['username']}")
+
     # Logout button
-    if st.sidebar.button("🚪 Logout", use_container_width=True):
-        # Clear authentication cookies
+    if st.sidebar.button("Logout", use_container_width=True):
+        # Clear authentication cookies FIRST
         clear_auth_cookies(cookie_manager)
+
+        # Explicitly clear authentication state
+        st.session_state.authenticated = False
+        st.session_state.user = None
 
         # Set a flag to prevent auto-login on next reload
         st.session_state.just_logged_out = True
 
-        # Clear session state (except sheets_manager and logout flag)
+        # Clear all other session state (except sheets_manager and logout flag)
+        keys_to_keep = ['sheets_manager', 'just_logged_out', 'authenticated', 'user']
         for key in list(st.session_state.keys()):
-            if key not in ['sheets_manager', 'just_logged_out']:
+            if key not in keys_to_keep:
                 del st.session_state[key]
+
         st.rerun()
     
     st.sidebar.markdown("---")
     
     # Connection status - check and maintain connection
     if st.session_state.sheets_manager.ensure_connection():
-        st.sidebar.success("✅ Connected to Google Sheets")
+        st.sidebar.success("Connected to Google Sheets")
         # Show connection duration if available
         if st.session_state.sheets_manager.connection_timestamp:
             duration = time.time() - st.session_state.sheets_manager.connection_timestamp
             st.sidebar.caption(f"Connected for {duration/60:.1f} minutes")
     else:
-        st.sidebar.error("❌ Not connected to Google Sheets")
+        st.sidebar.error("Not connected to Google Sheets")
         if st.sidebar.button("🔄 Try to Connect"):
             with st.spinner("Connecting..."):
                 if st.session_state.sheets_manager.initialize_connection():
@@ -1092,14 +1465,14 @@ def main():
     
     # Define pages with their required permissions
     all_pages = [
-        ("🏠 Dashboard", "view_dashboard"),
-        ("📝 Mark Attendance", "mark_attendance"), 
-        ("👥 Manage Members", "manage_members"),
-        ("📊 Analytics", "view_analytics"),
-        ("📋 Reports", "generate_reports"),
-        ("📜 History", "view_history"),
-        ("🔧 Admin Panel", "admin_panel"),
-        ("👤 User Management", "all")  # Only super admin
+        ("Dashboard", "view_dashboard"),
+        ("Mark Attendance", "mark_attendance"),
+        ("Manage Members", "manage_members"),
+        ("Analytics", "view_analytics"),
+        ("Reports", "generate_reports"),
+        ("History", "view_history"),
+        ("Admin Panel", "admin_panel"),
+        ("User Management", "all")  # Only super admin
     ]
     
     # Filter pages based on user permissions
@@ -1110,11 +1483,11 @@ def main():
     
     # Handle quick action navigation from session state
     if 'selected_page' not in st.session_state:
-        st.session_state.selected_page = accessible_pages[0] if accessible_pages else "🏠 Dashboard"
-    
+        st.session_state.selected_page = accessible_pages[0] if accessible_pages else "Dashboard"
+
     # Ensure selected page is accessible to current user
     if st.session_state.selected_page not in accessible_pages:
-        st.session_state.selected_page = accessible_pages[0] if accessible_pages else "🏠 Dashboard"
+        st.session_state.selected_page = accessible_pages[0] if accessible_pages else "Dashboard"
     
     # Get the current page from session state or radio
     current_page_index = 0
@@ -1130,13 +1503,13 @@ def main():
     # Cache controls
     st.sidebar.markdown("---")
     st.sidebar.subheader("Cache Controls")
-    if st.sidebar.button("🗑️ Clear Cache"):
+    if st.sidebar.button("Clear Cache"):
         st.session_state.sheets_manager.clear_cache()
         st.sidebar.success("Cache cleared!")
     
     # Main content area
     if not st.session_state.sheets_manager.connection_status:
-        st.title("⛪ Church Attendance Management System")
+        st.title("Church Attendance Management System")
         st.warning("Please configure your Google Sheets connection in the sidebar to get started.")
         
         st.subheader("Setup Instructions")
@@ -1153,27 +1526,27 @@ def main():
     # Route to selected page (use session state for consistency with quick actions)
     current_page = st.session_state.selected_page
     
-    if current_page == "🏠 Dashboard":
+    if current_page == "Dashboard":
         show_dashboard()
-    elif current_page == "📝 Mark Attendance":
+    elif current_page == "Mark Attendance":
         show_attendance_marking()
-    elif current_page == "👥 Manage Members":
+    elif current_page == "Manage Members":
         show_member_management()
-    elif current_page == "📊 Analytics":
+    elif current_page == "Analytics":
         show_analytics()
-    elif current_page == "📋 Reports":
+    elif current_page == "Reports":
         show_reports()
-    elif current_page == "📜 History":
+    elif current_page == "History":
         show_history()
-    elif current_page == "🔧 Admin Panel":
+    elif current_page == "Admin Panel":
         show_admin_panel()
-    elif current_page == "👤 User Management":
+    elif current_page == "User Management":
         show_user_management()
 
 
 def show_password_change():
     """Display password change interface for users who must change password"""
-    st.title("🔐 Password Change Required")
+    st.title("Password Change Required")
     st.warning("You must change your password before accessing the system.")
     
     user = st.session_state.user
@@ -1265,8 +1638,12 @@ def show_password_change():
 
 def show_user_management():
     """Display user management interface (Super Admin only)"""
-    st.title("👤 User Management")
-    st.markdown("Manage system users, roles, and permissions")
+    st.markdown("""
+        <div style='padding: 2rem; margin-bottom: 2rem; background: white; border-radius: 8px; border-left: 5px solid #d43c18; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+            <h1 style='color: #060245; margin: 0; padding: 0; border: none; font-size: 28px; font-weight: 700;'>User Management</h1>
+            <p style='color: #af9659; margin-top: 0.5rem; font-size: 14px; font-weight: 500;'>Manage system users, roles, and permissions</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     # Verify super admin access
     if st.session_state.user['role'] != 'super_admin':
@@ -1279,7 +1656,7 @@ def show_user_management():
     tab1, tab2, tab3, tab4 = st.tabs(["View Users", "Add User", "Manage Users", "User Activity"])
     
     with tab1:
-        st.subheader("👥 Current Users")
+        st.subheader("Current Users")
         
         if users_df.empty:
             st.info("No users found in the system.")
@@ -1310,7 +1687,7 @@ def show_user_management():
         
         # User statistics
         if not users_df.empty:
-            st.subheader("📊 User Statistics")
+            st.subheader("User Statistics")
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
@@ -1328,7 +1705,7 @@ def show_user_management():
                 st.metric("Users with Logins", recent_logins)
     
     with tab2:
-        st.subheader("➕ Add New User")
+        st.subheader("Add New User")
         
         with st.form("add_user_form"):
             col1, col2 = st.columns(2)
@@ -1349,7 +1726,7 @@ def show_user_management():
             
             st.markdown("*Required fields")
             
-            submitted = st.form_submit_button("👤 Create User", use_container_width=True, type="primary")
+            submitted = st.form_submit_button("Create User", use_container_width=True, type="primary")
             
             if submitted:
                 # Validation
@@ -1383,7 +1760,7 @@ def show_user_management():
                         st.error("Failed to create user")
     
     with tab3:
-        st.subheader("⚙️ Manage Existing Users")
+        st.subheader("Manage Existing Users")
         
         if users_df.empty:
             st.info("No users to manage.")
@@ -1408,7 +1785,7 @@ def show_user_management():
                     is_active = user_data['is_active']
                     
                     st.divider()
-                    st.subheader(f"👤 Managing User: {user_data['full_name']} ({selected_user})")
+                    st.subheader(f"Managing User: {user_data['full_name']} ({selected_user})")
                     
                     col1, col2 = st.columns(2)
                     
@@ -1456,19 +1833,19 @@ def show_user_management():
                         
                         # Delete User
                         st.write("**Danger Zone:**")
-                        if st.button("🗑️ Delete User", key=f"delete_{selected_user}", type="secondary"):
+                        if st.button("Delete User", key=f"delete_{selected_user}", type="secondary"):
                             # Confirmation in session state
                             st.session_state[f'confirm_delete_{selected_user}'] = True
                         
                         # Confirmation dialog
                         if st.session_state.get(f'confirm_delete_{selected_user}', False):
-                            st.warning(f"⚠️ Are you sure you want to delete user '{selected_user}'?")
+                            st.warning(f"Are you sure you want to delete user '{selected_user}'?")
                             st.write("This action cannot be undone.")
                             
                             col_yes, col_no = st.columns(2)
                             
                             with col_yes:
-                                if st.button("✅ Yes, Delete", key=f"confirm_yes_{selected_user}", type="primary"):
+                                if st.button("Yes, Delete", key=f"confirm_yes_{selected_user}", type="primary"):
                                     if user_manager.delete_user(selected_user):
                                         st.success("User deleted successfully!")
                                         if f'confirm_delete_{selected_user}' in st.session_state:
@@ -1478,7 +1855,7 @@ def show_user_management():
                                         st.error("Failed to delete user")
                             
                             with col_no:
-                                if st.button("❌ Cancel", key=f"confirm_no_{selected_user}"):
+                                if st.button("Cancel", key=f"confirm_no_{selected_user}"):
                                     if f'confirm_delete_{selected_user}' in st.session_state:
                                         del st.session_state[f'confirm_delete_{selected_user}']
                                     st.rerun()
@@ -1492,7 +1869,7 @@ def show_user_management():
                            "• Role changes take effect immediately")
     
     with tab4:
-        st.subheader("📈 User Activity")
+        st.subheader("User Activity")
         
         if users_df.empty or users_df['last_login'].isna().all():
             st.info("No user activity data available.")
@@ -1511,7 +1888,7 @@ def show_user_management():
             role_dist = users_df['role'].value_counts()
             role_dist.index = [user_manager.get_user_role_info(role).get('name', role) for role in role_dist.index]
             
-            st.subheader("👥 Role Distribution")
+            st.subheader("Role Distribution")
             fig = px.pie(values=role_dist.values, names=role_dist.index, title="Users by Role")
             fig.update_layout(height=400)
             st.plotly_chart(fig, use_container_width=True)
@@ -1519,15 +1896,19 @@ def show_user_management():
 
 def show_dashboard():
     """Display the main dashboard with comprehensive metrics and visualizations"""
-    st.title("🏠 Dashboard")
-    st.markdown("Welcome to the Church Attendance Management System")
+    st.markdown("""
+        <div style='padding: 2rem; margin-bottom: 2rem; background: white; border-radius: 8px; border-left: 5px solid #d43c18; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+            <h1 style='color: #060245; margin: 0; padding: 0; border: none; font-size: 28px; font-weight: 700;'>Dashboard Overview</h1>
+            <p style='color: #af9659; margin-top: 0.5rem; font-size: 14px; font-weight: 500;'>The Apostolic Church Ghana - Mamprobi Central</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     # Load data
     members_df = st.session_state.sheets_manager.load_members()
     attendance_df = st.session_state.sheets_manager.load_attendance()
     
     if members_df.empty and attendance_df.empty:
-        st.info("📊 Start by adding members and marking attendance to see dashboard insights!")
+        st.info("Start by adding members and marking attendance to see dashboard insights!")
         return
     
     # Calculate key metrics
@@ -1556,7 +1937,25 @@ def show_dashboard():
     
     if not members_df.empty and 'Group' in members_df.columns:
         total_groups = members_df['Group'].nunique()
-    
+
+    # Custom CSS for metrics cards
+    st.markdown("""
+        <style>
+        div[data-testid="stMetricValue"] {
+            font-size: 28px;
+            color: #060245;
+        }
+        div[data-testid="stMetricLabel"] {
+            color: #af9659;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        div[data-testid="stMetricDelta"] {
+            color: #d43c18;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     # Top metrics row
     col1, col2, col3, col4 = st.columns(4)
     
@@ -1602,7 +2001,7 @@ def show_dashboard():
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("📈 Attendance Trends (Last 30 Days)")
+            st.subheader("Attendance Trends (Last 30 Days)")
             
             # Daily attendance trend
             last_30_days = date.today() - timedelta(days=30)
@@ -1612,21 +2011,24 @@ def show_dashboard():
                 daily_counts = recent_attendance.groupby('Date').size().reset_index(name='Count')
                 daily_counts['Date'] = pd.to_datetime(daily_counts['Date'])
                 
-                fig = px.line(daily_counts, x='Date', y='Count', 
+                fig = px.line(daily_counts, x='Date', y='Count',
                             title="Daily Attendance",
                             markers=True)
+                fig.update_traces(line_color='#d43c18', marker=dict(color='#060245', size=8))
                 fig.update_layout(
-                    height=300, 
+                    height=300,
                     showlegend=False,
                     xaxis_title="Date",
-                    yaxis_title="Attendees"
+                    yaxis_title="Attendees",
+                    plot_bgcolor='rgba(244, 244, 244, 0.5)',
+                    paper_bgcolor='white'
                 )
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("No attendance data in the last 30 days")
         
         with col2:
-            st.subheader("👥 Group Performance")
+            st.subheader("Group Performance")
             
             if not members_df.empty and 'Group' in members_df.columns:
                 # Group attendance comparison
@@ -1638,17 +2040,19 @@ def show_dashboard():
                 fig = px.bar(group_stats, x='Group', y='Attendance Rate',
                            title="Group Attendance Rates (%)",
                            color='Attendance Rate',
-                           color_continuous_scale='viridis')
+                           color_continuous_scale=[[0, '#060245'], [0.5, '#af9659'], [1, '#d43c18']])
                 fig.update_layout(
-                    height=300, 
+                    height=300,
                     showlegend=False,
                     xaxis_title="Group",
-                    yaxis_title="Attendance Rate (%)"
+                    yaxis_title="Attendance Rate (%)",
+                    plot_bgcolor='rgba(244, 244, 244, 0.5)',
+                    paper_bgcolor='white'
                 )
                 st.plotly_chart(fig, use_container_width=True)
         
         # Weekly pattern analysis
-        st.subheader("📊 Weekly Attendance Patterns")
+        st.subheader("Weekly Attendance Patterns")
         col1, col2 = st.columns(2)
         
         with col1:
@@ -1665,13 +2069,18 @@ def show_dashboard():
                 fig = px.bar(day_counts, x='Day of Week', y='Count',
                            title="Attendance by Day of Week",
                            color='Count',
-                           color_continuous_scale='blues')
-                fig.update_layout(height=300, showlegend=False)
+                           color_continuous_scale=[[0, '#060245'], [0.5, '#af9659'], [1, '#d43c18']])
+                fig.update_layout(
+                    height=300,
+                    showlegend=False,
+                    plot_bgcolor='rgba(244, 244, 244, 0.5)',
+                    paper_bgcolor='white'
+                )
                 st.plotly_chart(fig, use_container_width=True)
         
         with col2:
             # Top attendees
-            st.subheader("🌟 Most Active Members")
+            st.subheader("Most Active Members")
             member_attendance = attendance_df.groupby('Full Name').size().reset_index(name='Attendance Count')
             member_attendance = member_attendance.sort_values('Attendance Count', ascending=False).head(10)
             
@@ -1680,43 +2089,45 @@ def show_dashboard():
                            title="Top 10 Most Active Members",
                            orientation='h',
                            color='Attendance Count',
-                           color_continuous_scale='greens')
+                           color_continuous_scale=[[0, '#060245'], [0.5, '#af9659'], [1, '#d43c18']])
                 fig.update_layout(
-                    height=300, 
+                    height=300,
                     showlegend=False,
-                    yaxis={'categoryorder': 'total ascending'}
+                    yaxis={'categoryorder': 'total ascending'},
+                    plot_bgcolor='rgba(244, 244, 244, 0.5)',
+                    paper_bgcolor='white'
                 )
                 st.plotly_chart(fig, use_container_width=True)
     
     # Quick actions
     st.divider()
-    st.subheader("⚡ Quick Actions")
+    st.subheader("Quick Actions")
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if st.button("📝 Mark Attendance", use_container_width=True, type="primary"):
-            st.session_state.selected_page = "📝 Mark Attendance"
+        if st.button("Mark Attendance", use_container_width=True, type="primary"):
+            st.session_state.selected_page = "Mark Attendance"
             st.rerun()
-    
+
     with col2:
-        if st.button("➕ Add Member", use_container_width=True):
-            st.session_state.selected_page = "👥 Manage Members"
+        if st.button("Add Member", use_container_width=True):
+            st.session_state.selected_page = "Manage Members"
             st.rerun()
-    
+
     with col3:
-        if st.button("📊 View Analytics", use_container_width=True):
-            st.session_state.selected_page = "📊 Analytics"
+        if st.button("View Analytics", use_container_width=True):
+            st.session_state.selected_page = "Analytics"
             st.rerun()
-    
+
     with col4:
-        if st.button("📋 Generate Report", use_container_width=True):
-            st.session_state.selected_page = "📋 Reports"
+        if st.button("Generate Report", use_container_width=True):
+            st.session_state.selected_page = "Reports"
             st.rerun()
     
     # Recent activity
     if not attendance_df.empty:
         st.divider()
-        st.subheader("🕒 Recent Activity")
+        st.subheader("Recent Activity")
         
         recent_records = attendance_df.sort_values('Timestamp', ascending=False).head(10)
         recent_records['Date'] = recent_records['Date'].dt.strftime('%Y-%m-%d')
@@ -1728,7 +2139,12 @@ def show_dashboard():
 
 def show_attendance_marking():
     """Display attendance marking interface"""
-    st.title("📝 Mark Attendance")
+    st.markdown("""
+        <div style='padding: 2rem; margin-bottom: 2rem; background: white; border-radius: 8px; border-left: 5px solid #d43c18; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+            <h1 style='color: #060245; margin: 0; padding: 0; border: none; font-size: 28px; font-weight: 700;'>Mark Attendance</h1>
+            <p style='color: #af9659; margin-top: 0.5rem; font-size: 14px; font-weight: 500;'>Record member attendance efficiently</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     members_df = st.session_state.sheets_manager.load_members()
     
@@ -1758,7 +2174,7 @@ def show_attendance_marking():
         return
     
     # Search functionality
-    st.subheader("🔍 Search Members")
+    st.subheader("Search Members")
     col1, col2 = st.columns([3, 1])
     
     with col1:
@@ -1770,7 +2186,7 @@ def show_attendance_marking():
         )
     
     with col2:
-        if st.button("🗑️ Clear Search", use_container_width=True):
+        if st.button("Clear Search", use_container_width=True):
             # Clear the search by rerunning without the search term
             if 'member_search' in st.session_state:
                 st.session_state.member_search = ""
@@ -1789,7 +2205,7 @@ def show_attendance_marking():
     # Show member count for selected group and search
     search_info = f" matching '{search_term}'" if search_term else ""
     group_info = 'all groups' if selected_group == 'All Groups' else selected_group
-    st.info(f"📊 {len(filtered_members)} member(s){search_info} in {group_info}")
+    st.info(f"{len(filtered_members)} member(s){search_info} in {group_info}")
     
     # Attendance form with filtered members
     with st.form("attendance_form"):
@@ -1799,9 +2215,9 @@ def show_attendance_marking():
             if len(filtered_members) <= 10:
                 st.success(f"🎯 Perfect! Found {len(filtered_members)} member(s) matching your search.")
             elif len(filtered_members) <= 20:
-                st.info(f"📝 Found {len(filtered_members)} members. You can refine your search further if needed.")
+                st.info(f"Found {len(filtered_members)} members. You can refine your search further if needed.")
             else:
-                st.warning(f"📋 Found {len(filtered_members)} members. Consider refining your search for easier selection.")
+                st.warning(f"Found {len(filtered_members)} members. Consider refining your search for easier selection.")
         else:
             st.subheader(f"Select Members Present ({len(filtered_members)} available)")
         
@@ -1816,9 +2232,9 @@ def show_attendance_marking():
         with col3:
             # Show quick stats
             if search_term:
-                st.write(f"🔍 **Filtered by:** '{search_term}'")
+                st.write(f"**Filtered by:** '{search_term}'")
             else:
-                st.write(f"👥 **Showing:** All in {group_info}")
+                st.write(f"**Showing:** All in {group_info}")
         
         st.divider()
         
@@ -1842,7 +2258,7 @@ def show_attendance_marking():
             
             # Add search match indicator
             if search_term and search_term.lower() in member_name.lower():
-                display_name = f"🔍 {display_name}"
+                display_name = f"{display_name}"
             
             # Use select_all to determine initial state
             initial_checked = select_all if 'select_all' in st.session_state else False
@@ -1860,9 +2276,9 @@ def show_attendance_marking():
         
         # Show summary of selected members
         if selected_members:
-            st.success(f"✅ {len(selected_members)} member(s) selected for attendance")
+            st.success(f"{len(selected_members)} member(s) selected for attendance")
         
-        submitted = st.form_submit_button("📝 Mark Attendance", use_container_width=True, type="primary")
+        submitted = st.form_submit_button("Mark Attendance", use_container_width=True, type="primary")
         
         if submitted:
             if not selected_members:
@@ -1872,11 +2288,11 @@ def show_attendance_marking():
                     success = st.session_state.sheets_manager.save_attendance(selected_members)
                     
                     if success:
-                        st.success(f"✅ Attendance marked for {len(selected_members)} members on {selected_date.strftime('%Y-%m-%d')}!")
+                        st.success(f"Attendance marked for {len(selected_members)} members on {selected_date.strftime('%Y-%m-%d')}!")
                         st.balloons()
                         
                         # Show summary of marked attendance
-                        st.subheader("📋 Attendance Summary")
+                        st.subheader("Attendance Summary")
                         summary_df = pd.DataFrame(selected_members)
                         st.dataframe(
                             summary_df[['Full Name', 'Group', 'Date']],
@@ -1889,7 +2305,12 @@ def show_attendance_marking():
 
 def show_member_management():
     """Display member management interface"""
-    st.title("👥 Member Management")
+    st.markdown("""
+        <div style='padding: 2rem; margin-bottom: 2rem; background: white; border-radius: 8px; border-left: 5px solid #d43c18; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+            <h1 style='color: #060245; margin: 0; padding: 0; border: none; font-size: 28px; font-weight: 700;'>Member Management</h1>
+            <p style='color: #af9659; margin-top: 0.5rem; font-size: 14px; font-weight: 500;'>Manage church membership records</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     tab1, tab2, tab3 = st.tabs(["View Members", "Add Member", "Import Members"])
     
@@ -1931,7 +2352,7 @@ def show_member_management():
                 email = st.text_input("Email (Optional)", placeholder="email@example.com")
                 phone = st.text_input("Phone (Optional)", placeholder="+1234567890")
             
-            submitted = st.form_submit_button("➕ Add Member", use_container_width=True)
+            submitted = st.form_submit_button("Add Member", use_container_width=True)
             
             if submitted:
                 if not full_name or not group:
@@ -1960,7 +2381,7 @@ def show_member_management():
                         success = st.session_state.sheets_manager.save_members(members_df)
                         
                         if success:
-                            st.success(f"✅ Member '{full_name}' added successfully!")
+                            st.success(f"Member '{full_name}' added successfully!")
                             st.rerun()
                         else:
                             st.error("Failed to add member. Please try again.")
@@ -1983,7 +2404,7 @@ def show_member_management():
                         success = st.session_state.sheets_manager.save_members(import_df)
                         
                         if success:
-                            st.success(f"✅ Imported {len(import_df)} members successfully!")
+                            st.success(f"Imported {len(import_df)} members successfully!")
                             st.rerun()
                         else:
                             st.error("Failed to import members. Please try again.")
@@ -2072,7 +2493,7 @@ def generate_actionable_insights(attendance_df, members_df, comparison_metrics, 
     # Attendance trend insight
     change = comparison_metrics['change_pct']
     if abs(change) >= 5:
-        emoji = "📈" if change > 0 else "📉"
+        emoji = "" if change > 0 else "📉"
         direction = "UP" if change > 0 else "DOWN"
         insights.append(f"{emoji} Attendance is {direction} {abs(change):.1f}% compared to previous period")
     else:
@@ -2085,14 +2506,14 @@ def generate_actionable_insights(attendance_df, members_df, comparison_metrics, 
         if critical > 0:
             insights.append(f"🚨 {critical} members haven't been seen in 6+ weeks (CRITICAL)")
         if warning > 0:
-            insights.append(f"⚠️ {warning} members haven't been seen in 3+ weeks")
+            insights.append(f"{warning} members haven't been seen in 3+ weeks")
     else:
-        insights.append("✅ All members have attended recently!")
+        insights.append("All members have attended recently!")
 
     # Average attendance insight
     avg = comparison_metrics['current_avg']
     prev_avg = comparison_metrics['previous_avg']
-    insights.append(f"👥 Average attendance: {avg:.1f} (vs {prev_avg:.1f} previous period)")
+    insights.append(f"Average attendance: {avg:.1f} (vs {prev_avg:.1f} previous period)")
 
     # Top group insight
     if not members_df.empty and 'Group' in members_df.columns:
@@ -2106,7 +2527,7 @@ def generate_actionable_insights(attendance_df, members_df, comparison_metrics, 
         if group_participation:
             top_group = max(group_participation, key=group_participation.get)
             top_pct = group_participation[top_group]
-            insights.append(f"🌟 Top performing group: {top_group} ({top_pct:.0f}% participation)")
+            insights.append(f"Top performing group: {top_group} ({top_pct:.0f}% participation)")
 
     # Peak attendance time
     if 'Timestamp' in attendance_df.columns:
@@ -2190,19 +2611,23 @@ def show_analytics():
     </style>
     """, unsafe_allow_html=True)
 
-    st.title("📊 Analytics & Insights")
-    st.markdown("Detailed analytics and trends for church attendance data")
+    st.markdown("""
+        <div style='padding: 2rem; margin-bottom: 2rem; background: white; border-radius: 8px; border-left: 5px solid #d43c18; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+            <h1 style='color: #060245; margin: 0; padding: 0; border: none; font-size: 28px; font-weight: 700;'>Analytics & Insights</h1>
+            <p style='color: #af9659; margin-top: 0.5rem; font-size: 14px; font-weight: 500;'>Detailed analytics and trends for church attendance data</p>
+        </div>
+    """, unsafe_allow_html=True)
 
     # Load data
     members_df = st.session_state.sheets_manager.load_members()
     attendance_df = st.session_state.sheets_manager.load_attendance()
 
     if attendance_df.empty:
-        st.warning("📈 No attendance data available. Start marking attendance to see analytics!")
+        st.warning("No attendance data available. Start marking attendance to see analytics!")
         return
     
     # Time period selector
-    st.subheader("📅 Analysis Period")
+    st.subheader("Analysis Period")
     col1, col2 = st.columns(2)
     
     with col1:
@@ -2268,7 +2693,7 @@ def show_analytics():
 
     # Create an attractive insights box
     insights_html = "<div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; color: white; margin-bottom: 20px;'>"
-    insights_html += "<h3 style='margin-top: 0; color: white;'>📊 Auto-Generated Insights</h3>"
+    insights_html += "<h3 style='margin-top: 0; color: white;'>Auto-Generated Insights</h3>"
     for insight in insights:
         insights_html += f"<p style='margin: 8px 0; font-size: 16px;'>{insight}</p>"
     insights_html += "</div>"
@@ -2277,7 +2702,7 @@ def show_analytics():
     # === PHASE 1 ENHANCEMENT 2: At-Risk Members Alert ===
     if len(at_risk_df) > 0:
         st.markdown("---")
-        st.subheader("⚠️ Members Needing Follow-Up")
+        st.subheader("Members Needing Follow-Up")
 
         col1, col2 = st.columns([2, 1])
 
@@ -2299,7 +2724,7 @@ def show_analytics():
             warning_count = len(at_risk_df[at_risk_df['Risk Level'] == 'Warning'])
 
             st.metric("🚨 Critical (6+ weeks)", critical_count)
-            st.metric("⚠️ Warning (3+ weeks)", warning_count)
+            st.metric("Warning (3+ weeks)", warning_count)
 
             # Export button
             if st.button("📥 Export Follow-Up List", use_container_width=True):
@@ -2314,7 +2739,7 @@ def show_analytics():
 
     # === PHASE 1 ENHANCEMENT 4: Enhanced Summary Statistics with Comparisons ===
     st.markdown("---")
-    st.subheader("📊 Summary Statistics")
+    st.subheader("Summary Statistics")
 
     # Use mobile-responsive columns
     col1, col2, col3, col4 = st.columns(4)
@@ -2342,7 +2767,7 @@ def show_analytics():
                  delta=f"{avg_delta:+.1f}" if avg_delta != 0 else None)
     
     # Attendance trends over time
-    st.subheader("📈 Attendance Trends")
+    st.subheader("Attendance Trends")
     
     # Group by time periods for trend analysis
     col1, col2 = st.columns(2)
@@ -2390,7 +2815,7 @@ def show_analytics():
     
     # === PHASE 1 ENHANCEMENT 3: Attendance Heatmap Calendar ===
     st.markdown("---")
-    st.subheader("🗓️ Attendance Heatmap Calendar")
+    st.subheader("Attendance Heatmap Calendar")
 
     # Create daily attendance counts
     daily_counts = filtered_attendance.groupby(filtered_attendance['Date'].dt.date).size().reset_index(name='Count')
@@ -2437,7 +2862,7 @@ def show_analytics():
         st.plotly_chart(fig, use_container_width=True)
 
         # Alternative: Simple calendar-style visualization
-        st.subheader("📅 Daily Attendance Calendar")
+        st.subheader("Daily Attendance Calendar")
 
         # Show recent 30 days in a more visual format
         cutoff_date = pd.Timestamp(date.today() - timedelta(days=30))
@@ -2463,12 +2888,12 @@ def show_analytics():
 
     # Advanced Analytics
     st.markdown("---")
-    st.subheader("🔍 Advanced Analytics")
+    st.subheader("Advanced Analytics")
     
     tab1, tab2, tab3, tab4 = st.tabs(["Group Analysis", "Member Engagement", "Attendance Patterns", "Growth Analysis"])
     
     with tab1:
-        st.subheader("👥 Group Performance Analysis")
+        st.subheader("Group Performance Analysis")
         
         if not members_df.empty and 'Group' in members_df.columns:
             # Group statistics
@@ -2507,7 +2932,7 @@ def show_analytics():
                     st.plotly_chart(fig, use_container_width=True)
     
     with tab2:
-        st.subheader("🌟 Member Engagement Analysis")
+        st.subheader("Member Engagement Analysis")
         
         # Member attendance frequency
         member_stats = filtered_attendance.groupby('Full Name').agg({
@@ -2571,7 +2996,7 @@ def show_analytics():
             st.metric("Median Attendance per Member", f"{median_attendance:.1f}")
     
     with tab3:
-        st.subheader("📅 Attendance Patterns")
+        st.subheader("Attendance Patterns")
         
         col1, col2 = st.columns(2)
         
@@ -2609,7 +3034,7 @@ def show_analytics():
                 st.plotly_chart(fig, use_container_width=True)
     
     with tab4:
-        st.subheader("📊 Growth Analysis")
+        st.subheader("Growth Analysis")
         
         if unique_days > 7:  # Need sufficient data for growth analysis
             # Calculate rolling averages
@@ -2681,7 +3106,7 @@ def show_analytics():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("📊 Export Summary Stats", use_container_width=True):
+        if st.button("Export Summary Stats", use_container_width=True):
             summary_data = {
                 'Metric': ['Total Records', 'Unique Attendees', 'Days with Attendance', 'Avg Daily Attendance'],
                 'Value': [total_attendance_records, unique_attendees, unique_days, f"{avg_daily_attendance:.1f}"]
@@ -2695,7 +3120,7 @@ def show_analytics():
             )
     
     with col2:
-        if st.button("👥 Export Member Stats", use_container_width=True):
+        if st.button("Export Member Stats", use_container_width=True):
             if 'member_stats' in locals():
                 csv = member_stats.to_csv(index=False)
                 st.download_button(
@@ -2706,7 +3131,7 @@ def show_analytics():
                 )
     
     with col3:
-        if st.button("📈 Export Trend Data", use_container_width=True):
+        if st.button("Export Trend Data", use_container_width=True):
             if 'weekly_counts' in locals():
                 csv = weekly_counts.to_csv(index=False)
                 st.download_button(
@@ -2719,19 +3144,23 @@ def show_analytics():
 
 def show_reports():
     """Display comprehensive reporting interface"""
-    st.title("📋 Reports & Export")
-    st.markdown("Generate detailed reports and export attendance data")
+    st.markdown("""
+        <div style='padding: 2rem; margin-bottom: 2rem; background: white; border-radius: 8px; border-left: 5px solid #d43c18; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+            <h1 style='color: #060245; margin: 0; padding: 0; border: none; font-size: 28px; font-weight: 700;'>Reports & Export</h1>
+            <p style='color: #af9659; margin-top: 0.5rem; font-size: 14px; font-weight: 500;'>Generate detailed reports and export attendance data</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     # Load data
     members_df = st.session_state.sheets_manager.load_members()
     attendance_df = st.session_state.sheets_manager.load_attendance()
     
     if attendance_df.empty and members_df.empty:
-        st.warning("📄 No data available for reports. Add members and mark attendance to generate reports.")
+        st.warning("No data available for reports. Add members and mark attendance to generate reports.")
         return
     
     # Report type selection
-    st.subheader("📊 Select Report Type")
+    st.subheader("Select Report Type")
     report_type = st.selectbox(
         "Choose the type of report to generate:",
         ["Monthly Summary Report", "Group Performance Report", "Member Engagement Report", 
@@ -2739,7 +3168,7 @@ def show_reports():
     )
     
     # Date range selection
-    st.subheader("📅 Report Period")
+    st.subheader("Report Period")
     col1, col2 = st.columns(2)
     
     with col1:
@@ -2804,7 +3233,7 @@ def show_reports():
         filtered_attendance = pd.DataFrame()
     
     # Generate report button
-    if st.button("📋 Generate Report", type="primary", use_container_width=True):
+    if st.button("Generate Report", type="primary", use_container_width=True):
         
         # Report generation based on type
         if report_type == "Monthly Summary Report":
@@ -2828,7 +3257,7 @@ def show_reports():
 
 def generate_monthly_summary_report(attendance_df, members_df, start_date, end_date, selected_groups):
     """Generate monthly summary report"""
-    st.subheader(f"📊 Monthly Summary Report - {start_date.strftime('%B %Y')}")
+    st.subheader(f"Monthly Summary Report - {start_date.strftime('%B %Y')}")
     
     if attendance_df.empty:
         st.warning("No attendance data for this period.")
@@ -2852,7 +3281,7 @@ def generate_monthly_summary_report(attendance_df, members_df, start_date, end_d
         st.metric("Avg Daily Attendance", f"{avg_daily_attendance:.1f}")
     
     # Daily attendance chart
-    st.subheader("📈 Daily Attendance Breakdown")
+    st.subheader("Daily Attendance Breakdown")
     daily_attendance = attendance_df.groupby('Date').size().reset_index(name='Count')
     
     fig = px.bar(daily_attendance, x='Date', y='Count',
@@ -2864,7 +3293,7 @@ def generate_monthly_summary_report(attendance_df, members_df, start_date, end_d
     
     # Group breakdown
     if 'Group' in attendance_df.columns:
-        st.subheader("👥 Group Performance")
+        st.subheader("Group Performance")
         group_summary = attendance_df.groupby('Group').agg({
             'Full Name': 'nunique',
             'Date': 'count'
@@ -2881,7 +3310,7 @@ def generate_monthly_summary_report(attendance_df, members_df, start_date, end_d
             st.plotly_chart(fig, use_container_width=True)
     
     # Top attendees
-    st.subheader("🌟 Top Attendees")
+    st.subheader("Top Attendees")
     top_attendees = attendance_df.groupby(['Full Name', 'Group']).size().reset_index(name='Attendance Count')
     top_attendees = top_attendees.sort_values('Attendance Count', ascending=False).head(10)
     
@@ -2921,7 +3350,7 @@ def generate_monthly_summary_report(attendance_df, members_df, start_date, end_d
 
 def generate_group_performance_report(attendance_df, members_df, start_date, end_date, selected_groups):
     """Generate group performance report"""
-    st.subheader(f"👥 Group Performance Report ({start_date} to {end_date})")
+    st.subheader(f"Group Performance Report ({start_date} to {end_date})")
     
     if attendance_df.empty or members_df.empty:
         st.warning("Insufficient data for group performance report.")
@@ -2980,7 +3409,7 @@ def generate_group_performance_report(attendance_df, members_df, start_date, end
     
     # Detailed group analysis
     for group in selected_groups:
-        with st.expander(f"📊 Detailed Analysis: {group}"):
+        with st.expander(f"Detailed Analysis: {group}"):
             group_attendance = attendance_df[attendance_df['Group'] == group]
             if not group_attendance.empty:
                 # Weekly trend for this group
@@ -3016,7 +3445,7 @@ def generate_group_performance_report(attendance_df, members_df, start_date, end
 
 def generate_member_engagement_report(attendance_df, members_df, start_date, end_date, selected_groups):
     """Generate member engagement report"""
-    st.subheader(f"🌟 Member Engagement Report ({start_date} to {end_date})")
+    st.subheader(f"Member Engagement Report ({start_date} to {end_date})")
     
     if attendance_df.empty:
         st.warning("No attendance data for member engagement analysis.")
@@ -3050,7 +3479,7 @@ def generate_member_engagement_report(attendance_df, members_df, start_date, end
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("📊 Engagement Level Distribution")
+        st.subheader("Engagement Level Distribution")
         st.dataframe(engagement_summary.reset_index(), use_container_width=True, hide_index=True)
         
         # Engagement level pie chart
@@ -3060,7 +3489,7 @@ def generate_member_engagement_report(attendance_df, members_df, start_date, end
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        st.subheader("📈 Engagement Statistics")
+        st.subheader("Engagement Statistics")
         avg_engagement = member_stats['Attendance Rate (%)'].mean()
         median_engagement = member_stats['Attendance Rate (%)'].median()
         
@@ -3070,7 +3499,7 @@ def generate_member_engagement_report(attendance_df, members_df, start_date, end
         st.metric("Highly Engaged Members", len(member_stats[member_stats['Attendance Rate (%)'] >= 80]))
     
     # Detailed member list
-    st.subheader("📋 Detailed Member Engagement")
+    st.subheader("Detailed Member Engagement")
     
     # Filter options
     col1, col2 = st.columns(2)
@@ -3108,7 +3537,7 @@ def generate_member_engagement_report(attendance_df, members_df, start_date, end
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        st.subheader("⚠️ Members Needing Engagement")
+        st.subheader("Members Needing Engagement")
         low_engagement = member_stats[member_stats['Attendance Rate (%)'] < 25].head(10)
         if not low_engagement.empty:
             fig = px.bar(low_engagement, x='Attendance Rate (%)', y='Full Name',
@@ -3142,7 +3571,7 @@ def generate_member_engagement_report(attendance_df, members_df, start_date, end
 
 def generate_attendance_trend_report(attendance_df, start_date, end_date):
     """Generate attendance trend analysis report"""
-    st.subheader(f"📈 Attendance Trend Report ({start_date} to {end_date})")
+    st.subheader(f"Attendance Trend Report ({start_date} to {end_date})")
     
     if attendance_df.empty:
         st.warning("No attendance data for trend analysis.")
@@ -3265,7 +3694,7 @@ def generate_attendance_trend_report(attendance_df, start_date, end_date):
 
 def generate_executive_summary_report(attendance_df, members_df, start_date, end_date):
     """Generate executive summary report"""
-    st.subheader(f"📊 Executive Summary ({start_date} to {end_date})")
+    st.subheader(f"Executive Summary ({start_date} to {end_date})")
     
     # Key Performance Indicators
     st.subheader("🎯 Key Performance Indicators")
@@ -3288,7 +3717,7 @@ def generate_executive_summary_report(attendance_df, members_df, start_date, end
     
     # Growth metrics
     if not attendance_df.empty and len(attendance_df) > 14:  # Need at least 2 weeks of data
-        st.subheader("📈 Growth Metrics")
+        st.subheader("Growth Metrics")
         
         # Calculate period-over-period growth
         mid_point = start_date + (end_date - start_date) / 2
@@ -3310,7 +3739,7 @@ def generate_executive_summary_report(attendance_df, members_df, start_date, end
             st.metric("Growth Rate", f"{growth_rate:+.1f}%")
     
     # Summary insights
-    st.subheader("🔍 Key Insights")
+    st.subheader("Key Insights")
     
     insights = []
     
@@ -3318,7 +3747,7 @@ def generate_executive_summary_report(attendance_df, members_df, start_date, end
         # Most active day
         day_counts = attendance_df.groupby(attendance_df['Date'].dt.day_name()).size()
         most_active_day = day_counts.idxmax()
-        insights.append(f"📅 Most active day: **{most_active_day}** ({day_counts.max()} total attendances)")
+        insights.append(f"Most active day: **{most_active_day}** ({day_counts.max()} total attendances)")
         
         # Best performing group
         if 'Group' in attendance_df.columns and not members_df.empty:
@@ -3339,7 +3768,7 @@ def generate_executive_summary_report(attendance_df, members_df, start_date, end
         unique_days = attendance_df['Date'].dt.date.nunique()
         if unique_days > 0:
             avg_daily = total_attendance / unique_days
-            insights.append(f"📊 Average daily attendance: **{avg_daily:.1f}** people")
+            insights.append(f"Average daily attendance: **{avg_daily:.1f}** people")
         
         # Member engagement levels
         if unique_attendees > 0:
@@ -3370,10 +3799,10 @@ def generate_executive_summary_report(attendance_df, members_df, start_date, end
             (attendance_df['Date'].dt.date < (end_date - timedelta(days=7)))
         ]
         if len(recent_week) < len(earlier_week) * 0.9:
-            recommendations.append("⚠️ Recent attendance decline detected - investigate potential causes")
+            recommendations.append("Recent attendance decline detected - investigate potential causes")
     
     if not recommendations:
-        recommendations.append("✅ Attendance patterns look healthy - continue current strategies")
+        recommendations.append("Attendance patterns look healthy - continue current strategies")
     
     for rec in recommendations:
         st.markdown(f"• {rec}")
@@ -3391,11 +3820,11 @@ def generate_executive_summary_report(attendance_df, members_df, start_date, end
 
 def generate_custom_date_range_report(attendance_df, members_df, start_date, end_date, selected_groups):
     """Generate custom date range report"""
-    st.subheader(f"📋 Custom Date Range Report ({start_date} to {end_date})")
+    st.subheader(f"Custom Date Range Report ({start_date} to {end_date})")
     
     # Summary section
     if not attendance_df.empty:
-        st.subheader("📊 Period Summary")
+        st.subheader("Period Summary")
         
         col1, col2, col3, col4 = st.columns(4)
         
@@ -3415,7 +3844,7 @@ def generate_custom_date_range_report(attendance_df, members_df, start_date, end
         
         # Detailed breakdown by selected groups
         if selected_groups and 'Group' in attendance_df.columns:
-            st.subheader("👥 Group Breakdown")
+            st.subheader("Group Breakdown")
             
             group_data = []
             for group in selected_groups:
@@ -3449,19 +3878,23 @@ def generate_custom_date_range_report(attendance_df, members_df, start_date, end
 
 def show_history():
     """Display attendance history with search and filter capabilities"""
-    st.title("📜 Attendance History")
-    st.markdown("Search, filter, and manage historical attendance records")
+    st.markdown("""
+        <div style='padding: 2rem; margin-bottom: 2rem; background: white; border-radius: 8px; border-left: 5px solid #d43c18; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+            <h1 style='color: #060245; margin: 0; padding: 0; border: none; font-size: 28px; font-weight: 700;'>Attendance History</h1>
+            <p style='color: #af9659; margin-top: 0.5rem; font-size: 14px; font-weight: 500;'>Search, filter, and manage historical attendance records</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     # Load data
     members_df = st.session_state.sheets_manager.load_members()
     attendance_df = st.session_state.sheets_manager.load_attendance()
     
     if attendance_df.empty:
-        st.warning("📜 No attendance history available. Start marking attendance to build history!")
+        st.warning("No attendance history available. Start marking attendance to build history!")
         return
     
     # Search and filter controls
-    st.subheader("🔍 Search & Filter")
+    st.subheader("Search & Filter")
     
     col1, col2, col3 = st.columns(3)
     
@@ -3566,7 +3999,7 @@ def show_history():
     filtered_df = filtered_df.sort_values(sort_column, ascending=sort_ascending)
     
     # Display summary
-    st.subheader("📊 Filter Results")
+    st.subheader("Filter Results")
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -3593,7 +4026,7 @@ def show_history():
     total_pages = (total_records - 1) // records_per_page + 1
     
     if total_pages > 1:
-        st.subheader("📄 Pagination")
+        st.subheader("Pagination")
         col1, col2, col3 = st.columns([1, 2, 1])
         
         with col1:
@@ -3624,7 +4057,7 @@ def show_history():
     page_df = filtered_df.iloc[start_idx:end_idx].copy()
     
     # Display records
-    st.subheader(f"📋 Records ({start_idx + 1}-{min(end_idx, total_records)} of {total_records})")
+    st.subheader(f"Records ({start_idx + 1}-{min(end_idx, total_records)} of {total_records})")
     
     # Prepare display dataframe
     display_df = page_df.copy()
@@ -3655,12 +4088,12 @@ def show_history():
     )
     
     # Bulk operations
-    st.subheader("🔧 Bulk Operations")
+    st.subheader("Bulk Operations")
     
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if st.button("📊 Export Filtered Data", use_container_width=True):
+        if st.button("Export Filtered Data", use_container_width=True):
             export_df = filtered_df.copy()
             export_df['Date'] = export_df['Date'].dt.strftime('%Y-%m-%d')
             if 'Timestamp' in export_df.columns:
@@ -3668,31 +4101,31 @@ def show_history():
             
             csv_data = export_df.to_csv(index=False)
             st.download_button(
-                label="💾 Download CSV",
+                label="Download CSV",
                 data=csv_data,
                 file_name=f"attendance_history_{date.today().strftime('%Y%m%d')}.csv",
                 mime="text/csv"
             )
     
     with col2:
-        if st.button("📈 Quick Analytics", use_container_width=True):
-            st.session_state.selected_page = "📊 Analytics"
+        if st.button("Quick Analytics", use_container_width=True):
+            st.session_state.selected_page = "Analytics"
             st.rerun()
-    
+
     with col3:
-        if st.button("📋 Generate Report", use_container_width=True):
-            st.session_state.selected_page = "📋 Reports"
+        if st.button("Generate Report", use_container_width=True):
+            st.session_state.selected_page = "Reports"
             st.rerun()
-    
+
     with col4:
-        if st.button("🗑️ Delete Filtered Records", use_container_width=True, type="secondary"):
+        if st.button("Delete Filtered Records", use_container_width=True, type="secondary"):
             st.session_state.show_bulk_delete = True
             st.rerun()
     
     # Bulk Delete Modal
     if st.session_state.get('show_bulk_delete', False):
         st.divider()
-        st.error("⚠️ Bulk Delete Filtered Records")
+        st.error("Bulk Delete Filtered Records")
         
         st.write(f"**You are about to delete {len(filtered_df)} records matching your current filters.**")
         
@@ -3707,7 +4140,7 @@ def show_history():
             if len(filtered_df) > 10:
                 st.write(f"... and {len(filtered_df) - 10} more records")
         
-        st.error("**⚠️ WARNING: This action cannot be undone!**")
+        st.error("**WARNING: This action cannot be undone!**")
         
         # Type confirmation
         st.write("To confirm, type **DELETE** in the box below:")
@@ -3716,7 +4149,7 @@ def show_history():
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("🗑️ Delete All Filtered Records", key="confirm_bulk_delete", type="primary", disabled=(confirmation != "DELETE")):
+            if st.button("Delete All Filtered Records", key="confirm_bulk_delete", type="primary", disabled=(confirmation != "DELETE")):
                 if confirmation == "DELETE":
                     deleted_count = 0
                     total_to_delete = len(filtered_df)
@@ -3741,7 +4174,7 @@ def show_history():
                         status_text.text(f"Deleted {deleted_count}/{total_to_delete} records...")
                         time.sleep(0.1)  # Small delay to show progress
                     
-                    st.success(f"✅ Successfully deleted {deleted_count} out of {total_to_delete} records!")
+                    st.success(f"Successfully deleted {deleted_count} out of {total_to_delete} records!")
                     st.session_state.show_bulk_delete = False
                     time.sleep(2)
                     st.rerun()
@@ -3749,13 +4182,13 @@ def show_history():
                     st.error("Please type DELETE to confirm")
         
         with col2:
-            if st.button("❌ Cancel", key="cancel_bulk_delete"):
+            if st.button("Cancel", key="cancel_bulk_delete"):
                 st.session_state.show_bulk_delete = False
                 st.rerun()
     
     # Record details expander
     if not page_df.empty:
-        st.subheader("🔍 Record Details")
+        st.subheader("Record Details")
         
         selected_record = st.selectbox(
             "Select a record to view details:",
@@ -3766,7 +4199,7 @@ def show_history():
         if selected_record is not None:
             record = page_df.iloc[selected_record]
             
-            with st.expander(f"📝 Details for {record['Full Name']} on {record['Date'].strftime('%Y-%m-%d')}", expanded=True):
+            with st.expander(f"Details for {record['Full Name']} on {record['Date'].strftime('%Y-%m-%d')}", expanded=True):
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -3801,18 +4234,18 @@ def show_history():
                 st.write("**Actions:**")
                 col1, col2 = st.columns(2)
                 with col1:
-                    if st.button("✏️ Edit Record", key=f"edit_{selected_record}"):
+                    if st.button("Edit Record", key=f"edit_{selected_record}"):
                         st.session_state[f'editing_record_{selected_record}'] = True
                         st.rerun()
                 with col2:
-                    if st.button("🗑️ Delete Record", key=f"delete_{selected_record}", type="secondary"):
+                    if st.button("Delete Record", key=f"delete_{selected_record}", type="secondary"):
                         st.session_state[f'deleting_record_{selected_record}'] = True
                         st.rerun()
                 
                 # Edit Record Modal
                 if st.session_state.get(f'editing_record_{selected_record}', False):
                     st.divider()
-                    st.subheader("✏️ Edit Attendance Record")
+                    st.subheader("Edit Attendance Record")
                     
                     with st.form(f"edit_form_{selected_record}"):
                         col1, col2 = st.columns(2)
@@ -3852,9 +4285,9 @@ def show_history():
                         col1, col2, col3 = st.columns(3)
                         
                         with col1:
-                            submitted = st.form_submit_button("💾 Save Changes", type="primary")
+                            submitted = st.form_submit_button("Save Changes", type="primary")
                         with col2:
-                            if st.form_submit_button("❌ Cancel"):
+                            if st.form_submit_button("Cancel"):
                                 st.session_state[f'editing_record_{selected_record}'] = False
                                 st.rerun()
                         
@@ -3877,24 +4310,24 @@ def show_history():
                             
                             # Update the record
                             if st.session_state.sheets_manager.update_attendance_record(original_record, updated_record):
-                                st.success("✅ Record updated successfully!")
+                                st.success("Record updated successfully!")
                                 st.session_state[f'editing_record_{selected_record}'] = False
                                 time.sleep(1)
                                 st.rerun()
                             else:
-                                st.error("❌ Failed to update record")
+                                st.error("Failed to update record")
                 
                 # Delete Record Modal
                 if st.session_state.get(f'deleting_record_{selected_record}', False):
                     st.divider()
-                    st.error("⚠️ Delete Attendance Record")
+                    st.error("Delete Attendance Record")
                     st.write(f"Are you sure you want to delete the attendance record for **{record['Full Name']}** on **{record['Date'].strftime('%Y-%m-%d')}**?")
                     st.write("This action cannot be undone.")
                     
                     col1, col2, col3 = st.columns(3)
                     
                     with col1:
-                        if st.button("🗑️ Yes, Delete", key=f"confirm_delete_{selected_record}", type="primary"):
+                        if st.button("Yes, Delete", key=f"confirm_delete_{selected_record}", type="primary"):
                             # Create record identifier
                             record_to_delete = {
                                 'Date': record['Date'].strftime('%Y-%m-%d'),
@@ -3904,26 +4337,30 @@ def show_history():
                             
                             # Delete the record
                             if st.session_state.sheets_manager.delete_attendance_record(record_to_delete):
-                                st.success("✅ Record deleted successfully!")
+                                st.success("Record deleted successfully!")
                                 st.session_state[f'deleting_record_{selected_record}'] = False
                                 time.sleep(1)
                                 st.rerun()
                             else:
-                                st.error("❌ Failed to delete record")
+                                st.error("Failed to delete record")
                     
                     with col2:
-                        if st.button("❌ Cancel", key=f"cancel_delete_{selected_record}"):
+                        if st.button("Cancel", key=f"cancel_delete_{selected_record}"):
                             st.session_state[f'deleting_record_{selected_record}'] = False
                             st.rerun()
 
 
 def show_admin_panel():
     """Display comprehensive admin panel with system management tools"""
-    st.title("🔧 Admin Panel")
-    st.markdown("System administration, data management, and maintenance tools")
+    st.markdown("""
+        <div style='padding: 2rem; margin-bottom: 2rem; background: white; border-radius: 8px; border-left: 5px solid #d43c18; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+            <h1 style='color: #060245; margin: 0; padding: 0; border: none; font-size: 28px; font-weight: 700;'>Admin Panel</h1>
+            <p style='color: #af9659; margin-top: 0.5rem; font-size: 14px; font-weight: 500;'>System administration, data management, and maintenance tools</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     # System Status Section
-    st.subheader("🖥️ System Status")
+    st.subheader("System Status")
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -3960,29 +4397,29 @@ def show_admin_panel():
                 st.session_state.sheets_manager.connection_status = False
                 if st.session_state.sheets_manager.initialize_connection():
                     st.session_state.sheets_manager.setup_worksheets()
-                    st.success("✅ Connection refreshed successfully!")
+                    st.success("Connection refreshed successfully!")
                 else:
-                    st.error("❌ Failed to refresh connection")
+                    st.error("Failed to refresh connection")
                 st.rerun()
     
     with col2:
-        if st.button("🗑️ Clear All Cache", use_container_width=True):
+        if st.button("Clear All Cache", use_container_width=True):
             st.session_state.sheets_manager.clear_cache()
             st.success("🧹 All cache cleared!")
             st.rerun()
     
     with col3:
-        if st.button("📊 Force Data Refresh", use_container_width=True):
+        if st.button("Force Data Refresh", use_container_width=True):
             with st.spinner("Refreshing all data..."):
                 st.session_state.sheets_manager.clear_cache()
                 members_df = st.session_state.sheets_manager.load_members(use_cache=False)
                 attendance_df = st.session_state.sheets_manager.load_attendance(use_cache=False)
-                st.success("📈 Data refreshed from Google Sheets!")
+                st.success("Data refreshed from Google Sheets!")
     
     st.divider()
     
     # Data Management Section
-    st.subheader("📊 Data Management")
+    st.subheader("Data Management")
     
     # Load fresh data for accurate statistics
     members_df = st.session_state.sheets_manager.load_members(use_cache=False)
@@ -4012,7 +4449,7 @@ def show_admin_panel():
             st.metric("Data Span (Days)", 0)
     
     # Data Quality Checks
-    st.subheader("🔍 Data Quality Analysis")
+    st.subheader("Data Quality Analysis")
     
     issues = []
     
@@ -4020,16 +4457,16 @@ def show_admin_panel():
         # Check for duplicate members
         duplicate_members = members_df[members_df.duplicated(subset=['Full Name', 'Group'], keep=False)]
         if not duplicate_members.empty:
-            issues.append(f"⚠️ Found {len(duplicate_members)} potential duplicate member records")
+            issues.append(f"Found {len(duplicate_members)} potential duplicate member records")
         
         # Check for missing required fields
         missing_names = members_df['Full Name'].isna().sum()
         if missing_names > 0:
-            issues.append(f"⚠️ Found {missing_names} members with missing names")
+            issues.append(f"Found {missing_names} members with missing names")
         
         missing_groups = members_df['Group'].isna().sum() if 'Group' in members_df.columns else 0
         if missing_groups > 0:
-            issues.append(f"⚠️ Found {missing_groups} members with missing groups")
+            issues.append(f"Found {missing_groups} members with missing groups")
     
     if not attendance_df.empty:
         # Check for orphaned attendance records (members not in members list)
@@ -4038,29 +4475,29 @@ def show_admin_panel():
             attendance_names = set(attendance_df['Full Name'].dropna())
             orphaned = attendance_names - member_names
             if orphaned:
-                issues.append(f"⚠️ Found {len(orphaned)} attendance records for members not in member list")
+                issues.append(f"Found {len(orphaned)} attendance records for members not in member list")
         
         # Check for invalid dates
         future_dates = attendance_df[attendance_df['Date'].dt.date > date.today()]
         if not future_dates.empty:
-            issues.append(f"⚠️ Found {len(future_dates)} attendance records with future dates")
+            issues.append(f"Found {len(future_dates)} attendance records with future dates")
         
         # Check for duplicate attendance records
         duplicate_attendance = attendance_df[
             attendance_df.duplicated(subset=['Date', 'Full Name'], keep=False)
         ]
         if not duplicate_attendance.empty:
-            issues.append(f"⚠️ Found {len(duplicate_attendance)} potential duplicate attendance records")
+            issues.append(f"Found {len(duplicate_attendance)} potential duplicate attendance records")
     
     if issues:
         st.warning("Data Quality Issues Found:")
         for issue in issues:
             st.markdown(f"• {issue}")
     else:
-        st.success("✅ No data quality issues detected!")
+        st.success("No data quality issues detected!")
     
     # Bulk Operations Section
-    st.subheader("⚙️ Bulk Operations")
+    st.subheader("Bulk Operations")
     
     tab1, tab2, tab3, tab4 = st.tabs(["Data Export", "Data Import", "Data Cleanup", "Maintenance"])
     
@@ -4143,7 +4580,7 @@ def show_admin_panel():
                 
                 backup_json = json.dumps(backup_data, indent=2)
                 st.download_button(
-                    label="💾 Download Complete Backup",
+                    label="Download Complete Backup",
                     data=backup_json,
                     file_name=f"church_attendance_backup_{date.today().strftime('%Y%m%d')}.json",
                     mime="application/json"
@@ -4152,7 +4589,7 @@ def show_admin_panel():
     with tab2:
         st.subheader("📥 Import Data")
         
-        st.warning("⚠️ Import functionality is not yet implemented for safety reasons.")
+        st.warning("Import functionality is not yet implemented for safety reasons.")
         st.markdown("""
         **Coming Soon:**
         - CSV file import with validation
@@ -4169,15 +4606,15 @@ def show_admin_panel():
         )
         
         if uploaded_file is not None:
-            st.info("📝 File received but import processing is not yet implemented")
+            st.info("File received but import processing is not yet implemented")
     
     with tab3:
         st.subheader("🧹 Data Cleanup Tools")
         
-        if st.button("🔍 Analyze Data Quality", use_container_width=True):
+        if st.button("Analyze Data Quality", use_container_width=True):
             st.success("Data quality analysis completed (see results above)")
         
-        st.warning("⚠️ Cleanup operations are not yet implemented for safety reasons.")
+        st.warning("Cleanup operations are not yet implemented for safety reasons.")
         st.markdown("""
         **Planned Cleanup Features:**
         - Remove duplicate records
@@ -4190,7 +4627,7 @@ def show_admin_panel():
         if not members_df.empty:
             duplicate_members = members_df[members_df.duplicated(subset=['Full Name', 'Group'], keep=False)]
             if not duplicate_members.empty:
-                st.subheader("🔍 Potential Duplicate Members")
+                st.subheader("Potential Duplicate Members")
                 # Ensure phone numbers are formatted correctly
                 if 'Phone' in duplicate_members.columns:
                     duplicate_members['Phone'] = duplicate_members['Phone'].apply(format_phone_number)
@@ -4201,7 +4638,7 @@ def show_admin_panel():
             attendance_names = set(attendance_df['Full Name'].dropna())
             orphaned = attendance_names - member_names
             if orphaned:
-                st.subheader("⚠️ Orphaned Attendance Records")
+                st.subheader("Orphaned Attendance Records")
                 orphaned_records = attendance_df[attendance_df['Full Name'].isin(orphaned)]
                 st.dataframe(
                     orphaned_records[['Date', 'Full Name', 'Group']].head(20),
@@ -4211,14 +4648,14 @@ def show_admin_panel():
                     st.info(f"... and {len(orphaned_records) - 20} more records")
     
     with tab4:
-        st.subheader("🔧 System Maintenance")
+        st.subheader("System Maintenance")
         
         # Cache management
         st.write("**Cache Management**")
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("🗑️ Clear Members Cache", use_container_width=True):
+            if st.button("Clear Members Cache", use_container_width=True):
                 # Clear only members-related cache
                 keys_to_remove = [key for key in st.session_state.sheets_manager.cache.keys() if 'load_members' in key]
                 for key in keys_to_remove:
@@ -4226,7 +4663,7 @@ def show_admin_panel():
                 st.success("Members cache cleared!")
         
         with col2:
-            if st.button("🗑️ Clear Attendance Cache", use_container_width=True):
+            if st.button("Clear Attendance Cache", use_container_width=True):
                 # Clear only attendance-related cache
                 keys_to_remove = [key for key in st.session_state.sheets_manager.cache.keys() if 'load_attendance' in key]
                 for key in keys_to_remove:
@@ -4259,14 +4696,14 @@ def show_admin_panel():
                     try:
                         test_result = st.session_state.sheets_manager.initialize_connection()
                         if test_result:
-                            st.success("✅ Connection test passed!")
+                            st.success("Connection test passed!")
                         else:
-                            st.error("❌ Connection test failed!")
+                            st.error("Connection test failed!")
                     except Exception as e:
-                        st.error(f"❌ Connection test error: {str(e)}")
+                        st.error(f"Connection test error: {str(e)}")
         
         with col2:
-            if st.button("🔍 Check Data Integrity", use_container_width=True):
+            if st.button("Check Data Integrity", use_container_width=True):
                 with st.spinner("Checking data integrity..."):
                     integrity_issues = 0
                     
@@ -4274,14 +4711,14 @@ def show_admin_panel():
                     try:
                         members_test = st.session_state.sheets_manager.load_members(use_cache=False)
                         attendance_test = st.session_state.sheets_manager.load_attendance(use_cache=False)
-                        st.success("✅ Data integrity check passed!")
+                        st.success("Data integrity check passed!")
                     except Exception as e:
-                        st.error(f"❌ Data integrity issues found: {str(e)}")
+                        st.error(f"Data integrity issues found: {str(e)}")
                         integrity_issues += 1
     
     # System Information
     st.divider()
-    st.subheader("ℹ️ System Information")
+    st.subheader("System Information")
     
     col1, col2 = st.columns(2)
     
@@ -4327,7 +4764,7 @@ def create_pdf_report(report_data: dict, report_type: str) -> bytes:
     )
     
     # Header with church info
-    story.append(Paragraph("⛪ Church Attendance Management System", title_style))
+    story.append(Paragraph("Church Attendance Management System", title_style))
     story.append(Spacer(1, 12))
     story.append(Paragraph(f"{report_type}", subtitle_style))
     story.append(Paragraph(f"Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['Normal']))
@@ -4340,7 +4777,7 @@ def create_pdf_report(report_data: dict, report_type: str) -> bytes:
     
     # Key metrics section
     if 'metrics' in report_data:
-        story.append(Paragraph("📊 Key Metrics", subtitle_style))
+        story.append(Paragraph("Key Metrics", subtitle_style))
         metrics_data = []
         for metric_name, metric_value in report_data['metrics'].items():
             metrics_data.append([metric_name, str(metric_value)])
@@ -4362,7 +4799,7 @@ def create_pdf_report(report_data: dict, report_type: str) -> bytes:
     # Detailed data tables
     if 'tables' in report_data:
         for table_name, table_data in report_data['tables'].items():
-            story.append(Paragraph(f"📋 {table_name}", subtitle_style))
+            story.append(Paragraph(f"{table_name}", subtitle_style))
             
             if isinstance(table_data, pd.DataFrame) and not table_data.empty:
                 # Convert DataFrame to table data
@@ -4391,7 +4828,7 @@ def create_pdf_report(report_data: dict, report_type: str) -> bytes:
     
     # Summary and insights
     if 'summary' in report_data:
-        story.append(Paragraph("📝 Summary & Insights", subtitle_style))
+        story.append(Paragraph("Summary & Insights", subtitle_style))
         for insight in report_data['summary']:
             story.append(Paragraph(f"• {insight}", styles['Normal']))
         story.append(Spacer(1, 15))
@@ -4509,7 +4946,7 @@ def generate_printable_report_html(report_data: dict, report_type: str) -> str:
     </head>
     <body>
         <div class="header">
-            <h1>⛪ Church Attendance Management System</h1>
+            <h1>Church Attendance Management System</h1>
             <h2>{report_type}</h2>
             <p><strong>Generated on:</strong> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
             {'<p><strong>Report Period:</strong> ' + report_data.get('period', 'N/A') + '</p>' if 'period' in report_data else ''}
@@ -4519,7 +4956,7 @@ def generate_printable_report_html(report_data: dict, report_type: str) -> str:
     # Add metrics section
     if 'metrics' in report_data:
         html_template += """
-        <h3 class="section-title">📊 Key Metrics</h3>
+        <h3 class="section-title">Key Metrics</h3>
         <div class="metrics-grid">
         """
         for metric_name, metric_value in report_data['metrics'].items():
@@ -4534,7 +4971,7 @@ def generate_printable_report_html(report_data: dict, report_type: str) -> str:
     # Add tables section
     if 'tables' in report_data:
         for table_name, table_data in report_data['tables'].items():
-            html_template += f"""<h3 class="section-title">📋 {table_name}</h3>"""
+            html_template += f"""<h3 class="section-title">{table_name}</h3>"""
             
             if isinstance(table_data, pd.DataFrame) and not table_data.empty:
                 html_template += table_data.to_html(classes='', table_id='', escape=False, index=False)
@@ -4544,7 +4981,7 @@ def generate_printable_report_html(report_data: dict, report_type: str) -> str:
     # Add summary section
     if 'summary' in report_data:
         html_template += """
-        <h3 class="section-title">📝 Summary & Insights</h3>
+        <h3 class="section-title">Summary & Insights</h3>
         <div class="summary-list">
             <ul>
         """
@@ -4658,7 +5095,7 @@ def create_universal_export_section(attendance_df: pd.DataFrame, members_df: pd.
             main_filename = f"{report_type.lower().replace(' ', '_')}"
         
         st.download_button(
-            label="📊 Download CSV",
+            label="Download CSV",
             data=main_csv,
             file_name=f"{main_filename}_{start_date.strftime('%Y_%m_%d')}.csv",
             mime="text/csv",
@@ -4677,7 +5114,7 @@ def create_universal_export_section(attendance_df: pd.DataFrame, members_df: pd.
 
             # Single-step download button
             st.download_button(
-                label="📄 Download PDF Report",
+                label="Download PDF Report",
                 data=pdf_bytes,
                 file_name=f"{report_type.replace(' ', '_')}_{start_date.strftime('%Y_%m_%d')}.pdf",
                 mime="application/pdf",
@@ -4688,7 +5125,7 @@ def create_universal_export_section(attendance_df: pd.DataFrame, members_df: pd.
 
         except Exception as e:
             st.button(
-                "📄 PDF Generation Failed",
+                "PDF Generation Failed",
                 disabled=True,
                 use_container_width=True,
                 help=f"Error: {str(e)}"
@@ -4706,7 +5143,7 @@ def create_universal_export_section(attendance_df: pd.DataFrame, members_df: pd.
 
             # Single-step download button
             st.download_button(
-                label="🖨️ Download HTML (Printable)",
+                label="Download HTML (Printable)",
                 data=html_content,
                 file_name=f"{report_type.replace(' ', '_')}_{start_date.strftime('%Y_%m_%d')}_Printable.html",
                 mime="text/html",
@@ -4717,7 +5154,7 @@ def create_universal_export_section(attendance_df: pd.DataFrame, members_df: pd.
 
         except Exception as e:
             st.button(
-                "🖨️ HTML Generation Failed",
+                "HTML Generation Failed",
                 disabled=True,
                 use_container_width=True,
                 help=f"Error: {str(e)}"
@@ -4725,7 +5162,7 @@ def create_universal_export_section(attendance_df: pd.DataFrame, members_df: pd.
     
     with col4:
         # Email functionality - simple approach
-        st.write("**📧 Email Report**")
+        st.write("**Email Report**")
         
         with st.form(f"email_form_{section_id}"):
             recipient_email = st.text_input(
@@ -4738,7 +5175,7 @@ def create_universal_export_section(attendance_df: pd.DataFrame, members_df: pd.
                 ["PDF Attachment", "HTML Attachment"]
             )
             
-            if st.form_submit_button("📧 Send Report", type="primary", use_container_width=True):
+            if st.form_submit_button("Send Report", type="primary", use_container_width=True):
                 if recipient_email:
                     try:
                         with st.spinner("Generating and sending report..."):
@@ -4752,7 +5189,7 @@ def create_universal_export_section(attendance_df: pd.DataFrame, members_df: pd.
                             st.info("Step 2: Checking email configuration...")
                             # Check if email is configured
                             if not hasattr(st.secrets, "email") or not st.secrets.get("email", {}):
-                                st.error("❌ Email not configured! Please add email settings to .streamlit/secrets.toml")
+                                st.error("Email not configured! Please add email settings to .streamlit/secrets.toml")
                                 st.code("""
 # Add this to .streamlit/secrets.toml:
 [email]
@@ -4769,28 +5206,28 @@ sender_password = "your-app-password"
                             
                             if send_report_email(recipient_email, pdf_report_data, 
                                                report_type, attachment_type):
-                                st.success(f"✅ Report emailed successfully to {recipient_email}!")
+                                st.success(f"Report emailed successfully to {recipient_email}!")
                             else:
-                                st.error("❌ Failed to send email. Check email configuration.")
+                                st.error("Failed to send email. Check email configuration.")
                                 
                     except Exception as e:
-                        st.error(f"❌ Error sending email: {str(e)}")
+                        st.error(f"Error sending email: {str(e)}")
                         import traceback
                         st.code(traceback.format_exc())
                 else:
-                    st.error("❌ Please enter a recipient email address.")
+                    st.error("Please enter a recipient email address.")
     
     # Additional data exports if provided
     if additional_csv_data and len(additional_csv_data) > 1:
         st.markdown("---")
-        st.subheader("📊 Additional Data Exports")
+        st.subheader("Additional Data Exports")
         cols = st.columns(min(len(additional_csv_data) - 1, 3))
         
         for idx, (name, csv_data) in enumerate(list(additional_csv_data.items())[1:]):
             if idx < len(cols):
                 with cols[idx]:
                     st.download_button(
-                        label=f"📊 {name}",
+                        label=f"{name}",
                         data=csv_data,
                         file_name=f"{name.lower().replace(' ', '_')}_{start_date.strftime('%Y_%m_%d')}.csv",
                         mime="text/csv",
