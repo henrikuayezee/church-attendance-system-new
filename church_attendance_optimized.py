@@ -4612,64 +4612,580 @@ def show_admin_panel():
     
     with tab2:
         st.subheader("📥 Import Data")
-        
-        st.warning("Import functionality is not yet implemented for safety reasons.")
-        st.markdown("""
-        **Coming Soon:**
-        - CSV file import with validation
-        - Data mapping and transformation
-        - Duplicate detection during import
-        - Preview and confirm before saving
-        """)
-        
-        # Placeholder for future import functionality
-        uploaded_file = st.file_uploader(
-            "Choose a CSV file",
-            type="csv",
-            help="Feature coming soon - files uploaded here won't be processed yet"
-        )
-        
-        if uploaded_file is not None:
-            st.info("File received but import processing is not yet implemented")
+
+        st.info("Import CSV files to add members or attendance records. Data will be validated before import.")
+
+        import_type = st.radio("Select Import Type", ["Members", "Attendance"], horizontal=True)
+
+        if import_type == "Members":
+            st.write("**Expected CSV Format:**")
+            st.code("Membership Number,Full Name,Group,Email,Phone")
+            st.write("*Note: Membership Number, Email, and Phone are optional. Full Name and Group are required.*")
+
+            uploaded_file = st.file_uploader(
+                "Choose Members CSV file",
+                type="csv",
+                key="members_upload"
+            )
+
+            if uploaded_file is not None:
+                try:
+                    # Read the uploaded CSV
+                    import_df = pd.read_csv(uploaded_file)
+
+                    st.success(f"File loaded successfully! Found {len(import_df)} records.")
+
+                    # Validate required columns
+                    required_cols = ['Full Name', 'Group']
+                    missing_cols = [col for col in required_cols if col not in import_df.columns]
+
+                    if missing_cols:
+                        st.error(f"Missing required columns: {', '.join(missing_cols)}")
+                        st.stop()
+
+                    # Show preview
+                    st.subheader("Preview Import Data")
+                    st.dataframe(import_df.head(10), use_container_width=True)
+                    if len(import_df) > 10:
+                        st.info(f"Showing first 10 of {len(import_df)} records")
+
+                    # Validation checks
+                    st.subheader("Validation Results")
+
+                    validation_issues = []
+
+                    # Check for empty required fields
+                    empty_names = import_df['Full Name'].isna().sum()
+                    if empty_names > 0:
+                        validation_issues.append(f"❌ {empty_names} records have empty names")
+
+                    empty_groups = import_df['Group'].isna().sum()
+                    if empty_groups > 0:
+                        validation_issues.append(f"❌ {empty_groups} records have empty groups")
+
+                    # Check for duplicates within import file
+                    import_duplicates = import_df[import_df.duplicated(subset=['Full Name', 'Group'], keep=False)]
+                    if not import_duplicates.empty:
+                        validation_issues.append(f"⚠️ {len(import_duplicates)} duplicate records found in import file")
+
+                    # Check for duplicates with existing data
+                    existing_members = members_df
+                    if not existing_members.empty:
+                        # Create comparison keys
+                        import_keys = set(import_df[['Full Name', 'Group']].apply(
+                            lambda x: f"{x['Full Name']}|{x['Group']}", axis=1
+                        ))
+                        existing_keys = set(existing_members[['Full Name', 'Group']].apply(
+                            lambda x: f"{x['Full Name']}|{x['Group']}", axis=1
+                        ))
+                        duplicates_with_existing = import_keys & existing_keys
+                        if duplicates_with_existing:
+                            validation_issues.append(f"⚠️ {len(duplicates_with_existing)} records already exist in database")
+
+                    if validation_issues:
+                        st.warning("Validation Issues:")
+                        for issue in validation_issues:
+                            st.markdown(f"• {issue}")
+                    else:
+                        st.success("✅ All validation checks passed!")
+
+                    # Import options
+                    st.subheader("Import Options")
+
+                    skip_duplicates = st.checkbox("Skip duplicate records (don't import existing members)", value=True)
+                    update_existing = st.checkbox("Update existing members with new data", value=False)
+
+                    if update_existing and skip_duplicates:
+                        st.warning("Note: 'Update existing' overrides 'Skip duplicates'")
+
+                    # Confirm import
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        if st.button("✅ Confirm Import", type="primary", use_container_width=True):
+                            with st.spinner("Importing data..."):
+                                # Clean the data
+                                clean_import_df = import_df.copy()
+
+                                # Remove records with empty required fields
+                                clean_import_df = clean_import_df.dropna(subset=['Full Name', 'Group'])
+
+                                # Add optional columns if missing
+                                for col in ['Membership Number', 'Email', 'Phone']:
+                                    if col not in clean_import_df.columns:
+                                        clean_import_df[col] = ''
+
+                                # Handle duplicates
+                                if skip_duplicates and not update_existing:
+                                    # Remove duplicates from import
+                                    clean_import_df = clean_import_df.drop_duplicates(subset=['Full Name', 'Group'], keep='first')
+
+                                    # Remove records that exist in current data
+                                    if not existing_members.empty:
+                                        existing_keys = set(existing_members[['Full Name', 'Group']].apply(
+                                            lambda x: f"{x['Full Name']}|{x['Group']}", axis=1
+                                        ))
+                                        clean_import_df['_key'] = clean_import_df[['Full Name', 'Group']].apply(
+                                            lambda x: f"{x['Full Name']}|{x['Group']}", axis=1
+                                        )
+                                        clean_import_df = clean_import_df[~clean_import_df['_key'].isin(existing_keys)]
+                                        clean_import_df = clean_import_df.drop(columns=['_key'])
+
+                                if update_existing:
+                                    # Merge with existing data
+                                    combined_df = pd.concat([existing_members, clean_import_df], ignore_index=True)
+                                    combined_df = combined_df.drop_duplicates(subset=['Full Name', 'Group'], keep='last')
+                                    final_df = combined_df
+                                else:
+                                    # Append new records
+                                    final_df = pd.concat([existing_members, clean_import_df], ignore_index=True)
+
+                                # Save to Google Sheets
+                                try:
+                                    st.session_state.sheets_manager.save_members(final_df)
+                                    st.success(f"✅ Successfully imported {len(clean_import_df)} member records!")
+                                    st.balloons()
+
+                                    # Clear cache to show new data
+                                    st.session_state.sheets_manager.clear_cache()
+                                    time.sleep(1)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error saving data: {str(e)}")
+
+                    with col2:
+                        if st.button("❌ Cancel", use_container_width=True):
+                            st.rerun()
+
+                except Exception as e:
+                    st.error(f"Error reading CSV file: {str(e)}")
+                    st.write("Please ensure your CSV file is properly formatted.")
+
+        else:  # Attendance import
+            st.write("**Expected CSV Format:**")
+            st.code("Date,Membership Number,Full Name,Group,Status")
+            st.write("*Note: Date (YYYY-MM-DD), Full Name, and Group are required. Status defaults to 'Present'.*")
+
+            uploaded_file = st.file_uploader(
+                "Choose Attendance CSV file",
+                type="csv",
+                key="attendance_upload"
+            )
+
+            if uploaded_file is not None:
+                try:
+                    # Read the uploaded CSV
+                    import_df = pd.read_csv(uploaded_file)
+
+                    st.success(f"File loaded successfully! Found {len(import_df)} records.")
+
+                    # Validate required columns
+                    required_cols = ['Date', 'Full Name', 'Group']
+                    missing_cols = [col for col in required_cols if col not in import_df.columns]
+
+                    if missing_cols:
+                        st.error(f"Missing required columns: {', '.join(missing_cols)}")
+                        st.stop()
+
+                    # Show preview
+                    st.subheader("Preview Import Data")
+                    st.dataframe(import_df.head(10), use_container_width=True)
+                    if len(import_df) > 10:
+                        st.info(f"Showing first 10 of {len(import_df)} records")
+
+                    # Validation checks
+                    st.subheader("Validation Results")
+
+                    validation_issues = []
+
+                    # Validate dates
+                    try:
+                        import_df['Date'] = pd.to_datetime(import_df['Date'])
+                        invalid_dates = import_df['Date'].isna().sum()
+                        if invalid_dates > 0:
+                            validation_issues.append(f"❌ {invalid_dates} records have invalid dates")
+                    except:
+                        validation_issues.append("❌ Error parsing dates - ensure format is YYYY-MM-DD")
+
+                    # Check for empty required fields
+                    empty_names = import_df['Full Name'].isna().sum()
+                    if empty_names > 0:
+                        validation_issues.append(f"❌ {empty_names} records have empty names")
+
+                    empty_groups = import_df['Group'].isna().sum()
+                    if empty_groups > 0:
+                        validation_issues.append(f"❌ {empty_groups} records have empty groups")
+
+                    # Check if members exist
+                    if not members_df.empty:
+                        member_names = set(members_df['Full Name'].dropna())
+                        import_names = set(import_df['Full Name'].dropna())
+                        unknown_members = import_names - member_names
+                        if unknown_members:
+                            validation_issues.append(f"⚠️ {len(unknown_members)} members not found in member database")
+
+                    # Check for duplicates
+                    import_duplicates = import_df[import_df.duplicated(subset=['Date', 'Full Name'], keep=False)]
+                    if not import_duplicates.empty:
+                        validation_issues.append(f"⚠️ {len(import_duplicates)} duplicate attendance records in import file")
+
+                    if validation_issues:
+                        st.warning("Validation Issues:")
+                        for issue in validation_issues:
+                            st.markdown(f"• {issue}")
+                    else:
+                        st.success("✅ All validation checks passed!")
+
+                    # Import options
+                    st.subheader("Import Options")
+
+                    skip_duplicates = st.checkbox("Skip duplicate attendance records", value=True)
+
+                    # Confirm import
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        if st.button("✅ Confirm Import", type="primary", use_container_width=True):
+                            with st.spinner("Importing attendance data..."):
+                                # Clean the data
+                                clean_import_df = import_df.copy()
+
+                                # Remove records with empty required fields
+                                clean_import_df = clean_import_df.dropna(subset=['Date', 'Full Name', 'Group'])
+
+                                # Add optional columns
+                                if 'Membership Number' not in clean_import_df.columns:
+                                    clean_import_df['Membership Number'] = ''
+                                if 'Status' not in clean_import_df.columns:
+                                    clean_import_df['Status'] = 'Present'
+
+                                # Add timestamp
+                                clean_import_df['Timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+                                # Convert dates to proper format
+                                clean_import_df['Date'] = pd.to_datetime(clean_import_df['Date']).dt.strftime('%Y-%m-%d')
+
+                                # Handle duplicates
+                                if skip_duplicates:
+                                    clean_import_df = clean_import_df.drop_duplicates(subset=['Date', 'Full Name'], keep='first')
+
+                                # Combine with existing attendance
+                                existing_attendance = attendance_df.copy()
+                                if not existing_attendance.empty:
+                                    existing_attendance['Date'] = pd.to_datetime(existing_attendance['Date']).dt.strftime('%Y-%m-%d')
+
+                                final_df = pd.concat([existing_attendance, clean_import_df], ignore_index=True)
+
+                                if skip_duplicates:
+                                    final_df = final_df.drop_duplicates(subset=['Date', 'Full Name'], keep='first')
+
+                                # Save to Google Sheets
+                                try:
+                                    # Convert back to datetime for saving
+                                    final_df['Date'] = pd.to_datetime(final_df['Date'])
+                                    st.session_state.sheets_manager.save_attendance(final_df)
+                                    st.success(f"✅ Successfully imported {len(clean_import_df)} attendance records!")
+                                    st.balloons()
+
+                                    # Clear cache
+                                    st.session_state.sheets_manager.clear_cache()
+                                    time.sleep(1)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error saving data: {str(e)}")
+
+                    with col2:
+                        if st.button("❌ Cancel", use_container_width=True):
+                            st.rerun()
+
+                except Exception as e:
+                    st.error(f"Error reading CSV file: {str(e)}")
+                    st.write("Please ensure your CSV file is properly formatted.")
     
     with tab3:
         st.subheader("🧹 Data Cleanup Tools")
-        
-        if st.button("Analyze Data Quality", use_container_width=True):
-            st.success("Data quality analysis completed (see results above)")
-        
-        st.warning("Cleanup operations are not yet implemented for safety reasons.")
-        st.markdown("""
-        **Planned Cleanup Features:**
-        - Remove duplicate records
-        - Fix data formatting issues
-        - Merge similar member names
-        - Archive old records
-        """)
-        
-        # Show problematic records if any
-        if not members_df.empty:
-            duplicate_members = members_df[members_df.duplicated(subset=['Full Name', 'Group'], keep=False)]
-            if not duplicate_members.empty:
-                st.subheader("Potential Duplicate Members")
-                # Ensure phone numbers are formatted correctly
-                if 'Phone' in duplicate_members.columns:
-                    duplicate_members['Phone'] = duplicate_members['Phone'].apply(format_phone_number)
-                st.dataframe(duplicate_members.sort_values(['Full Name', 'Group']), use_container_width=True)
-        
-        if not attendance_df.empty and not members_df.empty:
-            member_names = set(members_df['Full Name'].dropna())
-            attendance_names = set(attendance_df['Full Name'].dropna())
-            orphaned = attendance_names - member_names
-            if orphaned:
-                st.subheader("Orphaned Attendance Records")
-                orphaned_records = attendance_df[attendance_df['Full Name'].isin(orphaned)]
-                st.dataframe(
-                    orphaned_records[['Date', 'Full Name', 'Group']].head(20),
-                    use_container_width=True
-                )
-                if len(orphaned_records) > 20:
-                    st.info(f"... and {len(orphaned_records) - 20} more records")
+
+        st.info("Review and clean up data quality issues. All changes are permanent and cannot be undone.")
+
+        cleanup_type = st.radio(
+            "Select Cleanup Operation",
+            ["Remove Duplicate Members", "Fix Orphaned Attendance", "Remove Duplicate Attendance", "Clean Empty Records"],
+            horizontal=False
+        )
+
+        if cleanup_type == "Remove Duplicate Members":
+            st.write("**Remove Duplicate Member Records**")
+            st.write("This will keep the first occurrence and remove subsequent duplicates based on Full Name and Group.")
+
+            if not members_df.empty:
+                duplicate_members = members_df[members_df.duplicated(subset=['Full Name', 'Group'], keep=False)]
+
+                if not duplicate_members.empty:
+                    st.warning(f"Found {len(duplicate_members)} duplicate member records")
+
+                    # Show duplicates
+                    st.subheader("Duplicate Records Preview")
+                    display_df = duplicate_members.copy()
+                    if 'Phone' in display_df.columns:
+                        display_df['Phone'] = display_df['Phone'].apply(format_phone_number)
+                    st.dataframe(display_df.sort_values(['Full Name', 'Group']), use_container_width=True)
+
+                    # Cleanup options
+                    keep_option = st.radio(
+                        "Which record to keep?",
+                        ["Keep First", "Keep Last"],
+                        help="Choose which duplicate to keep when multiples are found"
+                    )
+
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        if st.button("🧹 Remove Duplicates", type="primary", use_container_width=True):
+                            with st.spinner("Removing duplicates..."):
+                                keep_first = (keep_option == "Keep First")
+                                cleaned_df = members_df.drop_duplicates(
+                                    subset=['Full Name', 'Group'],
+                                    keep='first' if keep_first else 'last'
+                                )
+
+                                removed_count = len(members_df) - len(cleaned_df)
+
+                                try:
+                                    st.session_state.sheets_manager.save_members(cleaned_df)
+                                    st.success(f"✅ Successfully removed {removed_count} duplicate member records!")
+                                    st.balloons()
+
+                                    # Clear cache
+                                    st.session_state.sheets_manager.clear_cache()
+                                    time.sleep(1)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error saving data: {str(e)}")
+
+                    with col2:
+                        st.write("")  # Spacer
+                else:
+                    st.success("✅ No duplicate member records found!")
+            else:
+                st.info("No member data available")
+
+        elif cleanup_type == "Fix Orphaned Attendance":
+            st.write("**Fix Orphaned Attendance Records**")
+            st.write("Attendance records for members not in the member database.")
+
+            if not attendance_df.empty and not members_df.empty:
+                member_names = set(members_df['Full Name'].dropna())
+                attendance_names = set(attendance_df['Full Name'].dropna())
+                orphaned = attendance_names - member_names
+
+                if orphaned:
+                    orphaned_records = attendance_df[attendance_df['Full Name'].isin(orphaned)]
+                    st.warning(f"Found {len(orphaned_records)} orphaned attendance records for {len(orphaned)} members")
+
+                    # Show orphaned records
+                    st.subheader("Orphaned Records Preview")
+                    preview_df = orphaned_records[['Date', 'Full Name', 'Group']].copy()
+                    preview_df['Date'] = pd.to_datetime(preview_df['Date']).dt.strftime('%Y-%m-%d')
+                    st.dataframe(preview_df.head(50), use_container_width=True)
+                    if len(orphaned_records) > 50:
+                        st.info(f"... and {len(orphaned_records) - 50} more records")
+
+                    # Cleanup options
+                    cleanup_action = st.radio(
+                        "How to handle orphaned records?",
+                        ["Delete orphaned attendance records", "Add missing members to member database"],
+                        help="Choose how to resolve the orphaned records"
+                    )
+
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        if st.button("🔧 Fix Orphaned Records", type="primary", use_container_width=True):
+                            with st.spinner("Fixing orphaned records..."):
+                                if cleanup_action == "Delete orphaned attendance records":
+                                    # Remove orphaned attendance
+                                    cleaned_attendance = attendance_df[~attendance_df['Full Name'].isin(orphaned)]
+                                    removed_count = len(attendance_df) - len(cleaned_attendance)
+
+                                    try:
+                                        st.session_state.sheets_manager.save_attendance(cleaned_attendance)
+                                        st.success(f"✅ Successfully removed {removed_count} orphaned attendance records!")
+                                        st.balloons()
+
+                                        # Clear cache
+                                        st.session_state.sheets_manager.clear_cache()
+                                        time.sleep(1)
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Error saving data: {str(e)}")
+
+                                else:
+                                    # Add missing members
+                                    missing_members_data = []
+                                    for name in orphaned:
+                                        # Get group from first attendance record
+                                        sample_record = orphaned_records[orphaned_records['Full Name'] == name].iloc[0]
+                                        missing_members_data.append({
+                                            'Membership Number': '',
+                                            'Full Name': name,
+                                            'Group': sample_record['Group'],
+                                            'Email': '',
+                                            'Phone': ''
+                                        })
+
+                                    new_members_df = pd.DataFrame(missing_members_data)
+                                    updated_members = pd.concat([members_df, new_members_df], ignore_index=True)
+
+                                    try:
+                                        st.session_state.sheets_manager.save_members(updated_members)
+                                        st.success(f"✅ Successfully added {len(orphaned)} missing members!")
+                                        st.balloons()
+
+                                        # Clear cache
+                                        st.session_state.sheets_manager.clear_cache()
+                                        time.sleep(1)
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Error saving data: {str(e)}")
+
+                    with col2:
+                        st.write("")  # Spacer
+                else:
+                    st.success("✅ No orphaned attendance records found!")
+            else:
+                st.info("No data available for analysis")
+
+        elif cleanup_type == "Remove Duplicate Attendance":
+            st.write("**Remove Duplicate Attendance Records**")
+            st.write("This will remove attendance records where the same person is marked present multiple times on the same date.")
+
+            if not attendance_df.empty:
+                duplicate_attendance = attendance_df[
+                    attendance_df.duplicated(subset=['Date', 'Full Name'], keep=False)
+                ]
+
+                if not duplicate_attendance.empty:
+                    st.warning(f"Found {len(duplicate_attendance)} duplicate attendance records")
+
+                    # Show duplicates
+                    st.subheader("Duplicate Attendance Preview")
+                    display_df = duplicate_attendance[['Date', 'Full Name', 'Group', 'Timestamp']].copy()
+                    display_df['Date'] = pd.to_datetime(display_df['Date']).dt.strftime('%Y-%m-%d')
+                    st.dataframe(display_df.sort_values(['Date', 'Full Name']).head(50), use_container_width=True)
+                    if len(duplicate_attendance) > 50:
+                        st.info(f"... and {len(duplicate_attendance) - 50} more records")
+
+                    keep_option = st.radio(
+                        "Which record to keep?",
+                        ["Keep First", "Keep Latest (by Timestamp)"],
+                        help="Choose which duplicate to keep"
+                    )
+
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        if st.button("🧹 Remove Duplicates", type="primary", use_container_width=True):
+                            with st.spinner("Removing duplicate attendance..."):
+                                if keep_option == "Keep First":
+                                    cleaned_df = attendance_df.drop_duplicates(
+                                        subset=['Date', 'Full Name'],
+                                        keep='first'
+                                    )
+                                else:
+                                    # Sort by timestamp and keep last
+                                    sorted_df = attendance_df.sort_values('Timestamp')
+                                    cleaned_df = sorted_df.drop_duplicates(
+                                        subset=['Date', 'Full Name'],
+                                        keep='last'
+                                    )
+
+                                removed_count = len(attendance_df) - len(cleaned_df)
+
+                                try:
+                                    st.session_state.sheets_manager.save_attendance(cleaned_df)
+                                    st.success(f"✅ Successfully removed {removed_count} duplicate attendance records!")
+                                    st.balloons()
+
+                                    # Clear cache
+                                    st.session_state.sheets_manager.clear_cache()
+                                    time.sleep(1)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error saving data: {str(e)}")
+
+                    with col2:
+                        st.write("")  # Spacer
+                else:
+                    st.success("✅ No duplicate attendance records found!")
+            else:
+                st.info("No attendance data available")
+
+        else:  # Clean Empty Records
+            st.write("**Clean Empty or Invalid Records**")
+            st.write("Remove records with missing required fields.")
+
+            issues_found = False
+
+            # Check members
+            if not members_df.empty:
+                st.subheader("Member Records")
+                invalid_members = members_df[
+                    members_df['Full Name'].isna() | members_df['Group'].isna()
+                ]
+
+                if not invalid_members.empty:
+                    issues_found = True
+                    st.warning(f"Found {len(invalid_members)} member records with missing required fields")
+                    st.dataframe(invalid_members, use_container_width=True)
+
+                    if st.button("🧹 Remove Invalid Members", use_container_width=True):
+                        with st.spinner("Cleaning member data..."):
+                            cleaned_df = members_df.dropna(subset=['Full Name', 'Group'])
+                            removed_count = len(members_df) - len(cleaned_df)
+
+                            try:
+                                st.session_state.sheets_manager.save_members(cleaned_df)
+                                st.success(f"✅ Successfully removed {removed_count} invalid member records!")
+                                st.balloons()
+
+                                # Clear cache
+                                st.session_state.sheets_manager.clear_cache()
+                                time.sleep(1)
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error saving data: {str(e)}")
+                else:
+                    st.success("✅ No invalid member records found!")
+
+            # Check attendance
+            if not attendance_df.empty:
+                st.subheader("Attendance Records")
+                invalid_attendance = attendance_df[
+                    attendance_df['Date'].isna() | attendance_df['Full Name'].isna() | attendance_df['Group'].isna()
+                ]
+
+                if not invalid_attendance.empty:
+                    issues_found = True
+                    st.warning(f"Found {len(invalid_attendance)} attendance records with missing required fields")
+                    display_df = invalid_attendance[['Date', 'Full Name', 'Group']].copy()
+                    st.dataframe(display_df.head(20), use_container_width=True)
+
+                    if st.button("🧹 Remove Invalid Attendance", use_container_width=True):
+                        with st.spinner("Cleaning attendance data..."):
+                            cleaned_df = attendance_df.dropna(subset=['Date', 'Full Name', 'Group'])
+                            removed_count = len(attendance_df) - len(cleaned_df)
+
+                            try:
+                                st.session_state.sheets_manager.save_attendance(cleaned_df)
+                                st.success(f"✅ Successfully removed {removed_count} invalid attendance records!")
+                                st.balloons()
+
+                                # Clear cache
+                                st.session_state.sheets_manager.clear_cache()
+                                time.sleep(1)
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error saving data: {str(e)}")
+                else:
+                    st.success("✅ No invalid attendance records found!")
+
+            if not issues_found:
+                st.success("✅ No data quality issues found!")
     
     with tab4:
         st.subheader("System Maintenance")
