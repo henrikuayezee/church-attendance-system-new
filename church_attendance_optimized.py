@@ -393,7 +393,60 @@ class UserManager:
         """Verify a password against its hash"""
         test_hash, _ = UserManager.hash_password(password, salt)
         return test_hash == hashed_password
-    
+
+    @staticmethod
+    def generate_username(full_name: str, existing_usernames: list = None) -> str:
+        """Generate a username from full name"""
+        if existing_usernames is None:
+            existing_usernames = []
+
+        # Clean and split name
+        name_parts = full_name.lower().strip().split()
+        if not name_parts:
+            base_username = "user"
+        elif len(name_parts) == 1:
+            base_username = name_parts[0]
+        else:
+            # First name + first letter of last name
+            base_username = name_parts[0] + name_parts[-1][0]
+
+        # Remove special characters
+        base_username = ''.join(c for c in base_username if c.isalnum())
+
+        # Ensure uniqueness
+        username = base_username
+        counter = 1
+        while username in existing_usernames:
+            username = f"{base_username}{counter}"
+            counter += 1
+
+        return username
+
+    @staticmethod
+    def generate_password(length: int = 12) -> str:
+        """Generate a secure random password"""
+        import string
+        import random
+
+        # Ensure password has mix of characters
+        characters = string.ascii_letters + string.digits + "!@#$%&*"
+
+        # Generate password with at least one of each type
+        password = [
+            random.choice(string.ascii_uppercase),
+            random.choice(string.ascii_lowercase),
+            random.choice(string.digits),
+            random.choice("!@#$%&*")
+        ]
+
+        # Fill remaining length
+        password += [random.choice(characters) for _ in range(length - 4)]
+
+        # Shuffle to avoid predictable pattern
+        random.shuffle(password)
+
+        return ''.join(password)
+
     def create_default_admin(self):
         """Create default admin user if no users exist"""
         try:
@@ -554,8 +607,9 @@ class UserManager:
     def delete_user(self, username: str) -> bool:
         """Delete a user (cannot delete super_admin users if they're the last one)"""
         try:
-            # Load current users
-            users_df = self.load_users(use_cache=False)
+            # Clear cache and load current users
+            self._clear_cache("load_users")
+            users_df = self.load_users()
             
             # Find user to delete
             user_to_delete = users_df[users_df['username'] == username]
@@ -1707,40 +1761,72 @@ def show_user_management():
     
     with tab2:
         st.subheader("Add New User")
-        
+
         with st.form("add_user_form"):
+            # Auto-generate option
+            auto_generate = st.checkbox(
+                "Auto-generate username and password",
+                value=False,
+                help="System will create credentials and email them to the user"
+            )
+
             col1, col2 = st.columns(2)
-            
+
             with col1:
-                new_username = st.text_input("Username*", placeholder="Enter username")
+                if not auto_generate:
+                    new_username = st.text_input("Username*", placeholder="Enter username")
+                else:
+                    new_username = ""
+                    st.info("Username will be auto-generated from full name")
+
                 new_full_name = st.text_input("Full Name*", placeholder="Enter full name")
-                new_email = st.text_input("Email", placeholder="Enter email address")
-            
+                new_email = st.text_input(
+                    "Email*" if auto_generate else "Email",
+                    placeholder="Enter email address",
+                    help="Required for auto-generated credentials" if auto_generate else None
+                )
+
             with col2:
                 new_role = st.selectbox(
                     "Role*",
                     options=list(UserManager.ROLES.keys()),
                     format_func=lambda x: f"{UserManager.ROLES[x]['name']} - {UserManager.ROLES[x]['description']}"
                 )
-                new_password = st.text_input("Temporary Password*", type="password", placeholder="Enter temporary password")
+
+                if not auto_generate:
+                    new_password = st.text_input("Temporary Password*", type="password", placeholder="Enter temporary password")
+                else:
+                    new_password = ""
+                    st.info("Password will be auto-generated and emailed")
+
                 require_password_change = st.checkbox("Require password change on first login", value=True)
-            
+
             st.markdown("*Required fields")
-            
+
             submitted = st.form_submit_button("Create User", use_container_width=True, type="primary")
-            
+
             if submitted:
                 # Validation
-                if not all([new_username, new_full_name, new_password]):
+                if not new_full_name:
+                    st.error("Please enter full name")
+                elif auto_generate and not new_email:
+                    st.error("Email is required when auto-generating credentials")
+                elif not auto_generate and not all([new_username, new_password]):
                     st.error("Please fill in all required fields")
-                elif len(new_password) < 8:
+                elif not auto_generate and len(new_password) < 8:
                     st.error("Password must be at least 8 characters long")
-                elif not users_df.empty and new_username in users_df['username'].values:
+                elif not auto_generate and not users_df.empty and new_username in users_df['username'].values:
                     st.error("Username already exists")
                 else:
+                    # Generate credentials if needed
+                    if auto_generate:
+                        existing_usernames = users_df['username'].tolist() if not users_df.empty else []
+                        new_username = user_manager.generate_username(new_full_name, existing_usernames)
+                        new_password = user_manager.generate_password()
+
                     # Create new user
                     password_hash, salt = user_manager.hash_password(new_password)
-                    
+
                     new_user = {
                         'username': new_username,
                         'password_hash': password_hash,
@@ -1753,9 +1839,21 @@ def show_user_management():
                         'is_active': True,
                         'must_change_password': require_password_change
                     }
-                    
+
                     if user_manager.save_user(new_user):
                         st.success(f"User '{new_username}' created successfully!")
+
+                        # Send email if credentials were auto-generated
+                        if auto_generate and new_email:
+                            with st.spinner("Sending credentials email..."):
+                                if send_credentials_email(new_email, new_username, new_password, new_full_name, new_role):
+                                    st.success(f"Credentials sent to {new_email}")
+                                else:
+                                    st.warning(f"User created but email failed. Credentials: Username: {new_username}, Password: {new_password}")
+
+                        # Wait a moment for user to see the message, then rerun to clear form
+                        import time
+                        time.sleep(2)
                         st.rerun()
                     else:
                         st.error("Failed to create user")
@@ -3234,26 +3332,82 @@ def show_reports():
         filtered_attendance = pd.DataFrame()
     
     # Generate report button
+    # Create a unique key for this report configuration
+    report_key = f"{report_type}_{start_date}_{end_date}_{str(selected_groups)}"
+
+    # Initialize session state for report generation
+    if 'current_report_key' not in st.session_state:
+        st.session_state.current_report_key = None
+    if 'report_generated' not in st.session_state:
+        st.session_state.report_generated = False
+
+    # Check if report configuration changed
+    if st.session_state.current_report_key != report_key:
+        st.session_state.report_generated = False
+
     if st.button("Generate Report", type="primary", use_container_width=True):
-        
+        st.session_state.report_generated = True
+        st.session_state.current_report_key = report_key
+        st.session_state.current_report_type = report_type
+        st.session_state.current_filtered_attendance = filtered_attendance
+        st.session_state.current_members_df = members_df
+        st.session_state.current_start_date = start_date
+        st.session_state.current_end_date = end_date
+        st.session_state.current_selected_groups = selected_groups
+
+    # Show report if it has been generated (persists across reruns)
+    if st.session_state.report_generated and st.session_state.current_report_key == report_key:
         # Report generation based on type
-        if report_type == "Monthly Summary Report":
-            generate_monthly_summary_report(filtered_attendance, members_df, start_date, end_date, selected_groups)
-            
-        elif report_type == "Group Performance Report":
-            generate_group_performance_report(filtered_attendance, members_df, start_date, end_date, selected_groups)
-            
-        elif report_type == "Member Engagement Report":
-            generate_member_engagement_report(filtered_attendance, members_df, start_date, end_date, selected_groups)
-            
-        elif report_type == "Attendance Trend Report":
-            generate_attendance_trend_report(filtered_attendance, start_date, end_date)
-            
-        elif report_type == "Executive Summary":
-            generate_executive_summary_report(filtered_attendance, members_df, start_date, end_date)
-            
-        elif report_type == "Custom Date Range Report":
-            generate_custom_date_range_report(filtered_attendance, members_df, start_date, end_date, selected_groups)
+        if st.session_state.current_report_type == "Monthly Summary Report":
+            generate_monthly_summary_report(
+                st.session_state.current_filtered_attendance,
+                st.session_state.current_members_df,
+                st.session_state.current_start_date,
+                st.session_state.current_end_date,
+                st.session_state.current_selected_groups
+            )
+
+        elif st.session_state.current_report_type == "Group Performance Report":
+            generate_group_performance_report(
+                st.session_state.current_filtered_attendance,
+                st.session_state.current_members_df,
+                st.session_state.current_start_date,
+                st.session_state.current_end_date,
+                st.session_state.current_selected_groups
+            )
+
+        elif st.session_state.current_report_type == "Member Engagement Report":
+            generate_member_engagement_report(
+                st.session_state.current_filtered_attendance,
+                st.session_state.current_members_df,
+                st.session_state.current_start_date,
+                st.session_state.current_end_date,
+                st.session_state.current_selected_groups
+            )
+
+        elif st.session_state.current_report_type == "Attendance Trend Report":
+            generate_attendance_trend_report(
+                st.session_state.current_filtered_attendance,
+                st.session_state.current_start_date,
+                st.session_state.current_end_date
+            )
+
+        elif st.session_state.current_report_type == "Executive Summary":
+            generate_executive_summary_report(
+                st.session_state.current_filtered_attendance,
+                st.session_state.current_members_df,
+                st.session_state.current_start_date,
+                st.session_state.current_end_date
+            )
+
+        elif st.session_state.current_report_type == "Custom Date Range Report":
+            generate_custom_date_range_report(
+                st.session_state.current_filtered_attendance,
+                st.session_state.current_members_df,
+                st.session_state.current_start_date,
+                st.session_state.current_end_date,
+                st.session_state.current_selected_groups
+            )
 
 
 def generate_monthly_summary_report(attendance_df, members_df, start_date, end_date, selected_groups):
@@ -5547,7 +5701,70 @@ def generate_printable_report_html(report_data: dict, report_type: str) -> str:
     return html_template
 
 
-def send_report_email(recipient_email: str, report_data: dict, report_type: str, 
+def send_credentials_email(recipient_email: str, username: str, password: str,
+                          full_name: str, role: str) -> bool:
+    """Send user credentials via email"""
+    try:
+        # Email configuration - these should be set in Streamlit secrets
+        smtp_server = st.secrets.get("email", {}).get("smtp_server", "smtp.gmail.com")
+        smtp_port = st.secrets.get("email", {}).get("smtp_port", 587)
+        sender_email = st.secrets.get("email", {}).get("sender_email", "")
+        sender_password = st.secrets.get("email", {}).get("sender_password", "")
+        system_url = st.secrets.get("email", {}).get("system_url", "https://your-app.streamlit.app")
+
+        if not sender_email or not sender_password:
+            st.error("Email configuration not found in secrets. Please configure email settings.")
+            return False
+
+        # Create message
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = recipient_email
+        msg['Subject'] = "Your TAC - Mamprobi Central Attendance System Account Credentials"
+
+        # Email body
+        body = f"""
+Dear {full_name},
+
+Welcome to the TAC - Mamprobi Central Attendance System!
+
+Your account has been created with the following credentials:
+
+Username: {username}
+Temporary Password: {password}
+Role: {UserManager.ROLES.get(role, {}).get('name', role)}
+
+For security reasons, you will be required to change your password upon first login.
+
+To access the system:
+1. Go to: {system_url}
+2. Enter your username and temporary password
+3. Follow the prompts to set a new password
+
+If you have any questions or need assistance, please contact the system administrator.
+
+Best regards,
+TAC - Mamprobi Central Attendance System
+        """
+
+        msg.attach(MIMEText(body, 'plain'))
+
+        # Send email
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        text = msg.as_string()
+        server.sendmail(sender_email, recipient_email, text)
+        server.quit()
+
+        return True
+
+    except Exception as e:
+        st.error(f"Failed to send credentials email: {str(e)}")
+        return False
+
+
+def send_report_email(recipient_email: str, report_data: dict, report_type: str,
                      attachment_type: str = 'pdf') -> bool:
     """Send report via email with PDF or HTML attachment"""
     try:
@@ -5707,61 +5924,101 @@ def create_universal_export_section(attendance_df: pd.DataFrame, members_df: pd.
             )
     
     with col4:
-        # Email functionality - simple approach
+        # Email functionality - enhanced with multiple recipients
         st.write("**Email Report**")
-        
+
         with st.form(f"email_form_{section_id}"):
-            recipient_email = st.text_input(
-                "Recipient Email",
-                placeholder="pastor@church.org"
+            # Load platform users with emails
+            try:
+                user_manager = st.session_state.get('user_manager')
+                if user_manager:
+                    users_df = user_manager.load_users()
+                    users_with_email = users_df[users_df['email'].notna() & (users_df['email'] != '')]
+
+                    if not users_with_email.empty:
+                        # Create user display names with emails
+                        user_options = {
+                            f"{row['full_name']} ({row['email']})": row['email']
+                            for _, row in users_with_email.iterrows()
+                        }
+
+                        selected_users = st.multiselect(
+                            "Select Platform Users",
+                            options=list(user_options.keys()),
+                            help="Select users from the platform to send report"
+                        )
+
+                        # Get emails from selected users
+                        selected_user_emails = [user_options[user] for user in selected_users]
+                    else:
+                        selected_user_emails = []
+                else:
+                    selected_user_emails = []
+            except:
+                selected_user_emails = []
+
+            # Manual email entry
+            manual_emails = st.text_area(
+                "Additional Emails (one per line)",
+                placeholder="pastor@church.org\nsecretary@church.org",
+                help="Enter email addresses, one per line"
             )
-            
+
             email_format = st.selectbox(
                 "Format",
                 ["PDF Attachment", "HTML Attachment"]
             )
-            
+
             if st.form_submit_button("Send Report", type="primary", use_container_width=True):
-                if recipient_email:
+                # Combine all email addresses
+                all_emails = selected_user_emails.copy()
+
+                if manual_emails:
+                    # Parse manual emails (one per line)
+                    manual_email_list = [email.strip() for email in manual_emails.split('\n') if email.strip()]
+                    all_emails.extend(manual_email_list)
+
+                # Remove duplicates
+                all_emails = list(set(all_emails))
+
+                if all_emails:
                     try:
-                        with st.spinner("Generating and sending report..."):
-                            st.info("Step 1: Extracting report data...")
-                            # Extract report data
-                            pdf_report_data = extract_report_data_for_pdf(
-                                attendance_df, members_df, start_date, end_date, 
-                                report_type, selected_groups
-                            )
-                            
-                            st.info("Step 2: Checking email configuration...")
+                        with st.spinner("Sending report..."):
                             # Check if email is configured
                             if not hasattr(st.secrets, "email") or not st.secrets.get("email", {}):
                                 st.error("Email not configured! Please add email settings to .streamlit/secrets.toml")
-                                st.code("""
-# Add this to .streamlit/secrets.toml:
-[email]
-smtp_server = "smtp.gmail.com"
-smtp_port = 587
-sender_email = "your-email@gmail.com" 
-sender_password = "your-app-password"
-                                """)
                                 return
-                            
-                            st.info("Step 3: Sending email...")
-                            # Send email
+
+                            # Extract report data once
+                            pdf_report_data = extract_report_data_for_pdf(
+                                attendance_df, members_df, start_date, end_date,
+                                report_type, selected_groups
+                            )
+
+                            # Send email to all recipients
                             attachment_type = 'pdf' if email_format == "PDF Attachment" else 'html'
-                            
-                            if send_report_email(recipient_email, pdf_report_data, 
-                                               report_type, attachment_type):
-                                st.success(f"Report emailed successfully to {recipient_email}!")
-                            else:
-                                st.error("Failed to send email. Check email configuration.")
-                                
+
+                            success_count = 0
+                            failed_emails = []
+
+                            for recipient_email in all_emails:
+                                if send_report_email(recipient_email, pdf_report_data,
+                                                   report_type, attachment_type):
+                                    success_count += 1
+                                else:
+                                    failed_emails.append(recipient_email)
+
+                            # Show results
+                            if success_count > 0:
+                                st.success(f"Report sent successfully to {success_count} recipient(s)!")
+
+                            if failed_emails:
+                                st.warning(f"Failed to send to: {', '.join(failed_emails)}")
+
                     except Exception as e:
                         st.error(f"Error sending email: {str(e)}")
-                        import traceback
-                        st.code(traceback.format_exc())
                 else:
-                    st.error("Please enter a recipient email address.")
+                    st.error("Please select users or enter at least one email address.")
     
     # Additional data exports if provided
     if additional_csv_data and len(additional_csv_data) > 1:
