@@ -31,6 +31,195 @@ from email.mime.base import MIMEBase
 from email import encoders
 import os
 import extra_streamlit_components as stx
+import re
+import html
+
+# ============================================================================
+# INPUT VALIDATION & SANITIZATION UTILITIES
+# ============================================================================
+
+class InputValidator:
+    """Comprehensive input validation and sanitization utilities"""
+
+    # Regex patterns
+    EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+    PHONE_PATTERN = re.compile(r'^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$')
+
+    @staticmethod
+    def validate_email(email: str) -> tuple[bool, str]:
+        """Validate email format"""
+        if not email:
+            return True, ""  # Empty is okay for optional fields
+
+        email = email.strip()
+
+        # Check length
+        if len(email) > 254:
+            return False, "Email address is too long (max 254 characters)"
+
+        # Check format
+        if not InputValidator.EMAIL_PATTERN.match(email):
+            return False, "Invalid email format. Example: user@example.com"
+
+        return True, ""
+
+    @staticmethod
+    def validate_phone(phone: str) -> tuple[bool, str]:
+        """Validate phone number format"""
+        if not phone:
+            return True, ""  # Empty is okay for optional fields
+
+        phone = phone.strip()
+
+        # Check length
+        if len(phone) < 10 or len(phone) > 20:
+            return False, "Phone number should be between 10-20 characters"
+
+        # Check format
+        if not InputValidator.PHONE_PATTERN.match(phone):
+            return False, "Invalid phone format. Example: +1-234-567-8900 or 0201234567"
+
+        return True, ""
+
+    @staticmethod
+    def validate_password_strength(password: str) -> tuple[bool, str]:
+        """Validate password strength"""
+        if len(password) < 8:
+            return False, "Password must be at least 8 characters long"
+
+        if len(password) > 128:
+            return False, "Password is too long (max 128 characters)"
+
+        # Check for required character types
+        has_upper = any(c.isupper() for c in password)
+        has_lower = any(c.islower() for c in password)
+        has_digit = any(c.isdigit() for c in password)
+        has_special = any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password)
+
+        missing = []
+        if not has_upper:
+            missing.append("uppercase letter")
+        if not has_lower:
+            missing.append("lowercase letter")
+        if not has_digit:
+            missing.append("number")
+        if not has_special:
+            missing.append("special character (!@#$%^&* etc.)")
+
+        if missing:
+            return False, f"Password must contain at least one: {', '.join(missing)}"
+
+        return True, ""
+
+    @staticmethod
+    def sanitize_text(text: str, max_length: int = 500) -> str:
+        """Sanitize text input to prevent XSS"""
+        if not text:
+            return ""
+
+        # Strip whitespace
+        text = text.strip()
+
+        # Limit length
+        if len(text) > max_length:
+            text = text[:max_length]
+
+        # Escape HTML entities
+        text = html.escape(text)
+
+        return text
+
+    @staticmethod
+    def validate_name(name: str, field_name: str = "Name") -> tuple[bool, str]:
+        """Validate name fields"""
+        if not name or not name.strip():
+            return False, f"{field_name} is required"
+
+        name = name.strip()
+
+        if len(name) < 2:
+            return False, f"{field_name} must be at least 2 characters"
+
+        if len(name) > 100:
+            return False, f"{field_name} is too long (max 100 characters)"
+
+        # Check for reasonable characters (letters, spaces, hyphens, apostrophes)
+        if not re.match(r"^[a-zA-Z\s\-'\.]+$", name):
+            return False, f"{field_name} contains invalid characters"
+
+        return True, ""
+
+    @staticmethod
+    def validate_username(username: str) -> tuple[bool, str]:
+        """Validate username"""
+        if not username or not username.strip():
+            return False, "Username is required"
+
+        username = username.strip()
+
+        if len(username) < 3:
+            return False, "Username must be at least 3 characters"
+
+        if len(username) > 50:
+            return False, "Username is too long (max 50 characters)"
+
+        # Only alphanumeric and underscore
+        if not re.match(r"^[a-zA-Z0-9_]+$", username):
+            return False, "Username can only contain letters, numbers, and underscores"
+
+        return True, ""
+
+class LoginRateLimiter:
+    """Rate limiting for login attempts"""
+
+    def __init__(self):
+        if 'login_attempts' not in st.session_state:
+            st.session_state.login_attempts = {}
+
+    def check_rate_limit(self, username: str, max_attempts: int = 5, window_minutes: int = 15) -> tuple[bool, str]:
+        """Check if user has exceeded rate limit"""
+        if 'login_attempts' not in st.session_state:
+            st.session_state.login_attempts = {}
+
+        current_time = datetime.now()
+
+        if username in st.session_state.login_attempts:
+            attempts = st.session_state.login_attempts[username]
+
+            # Filter attempts within the time window
+            recent_attempts = [
+                attempt_time for attempt_time in attempts
+                if (current_time - attempt_time).total_seconds() < window_minutes * 60
+            ]
+
+            st.session_state.login_attempts[username] = recent_attempts
+
+            if len(recent_attempts) >= max_attempts:
+                oldest_attempt = min(recent_attempts)
+                wait_time = window_minutes * 60 - (current_time - oldest_attempt).total_seconds()
+                wait_minutes = int(wait_time / 60) + 1
+                return False, f"Too many failed attempts. Please try again in {wait_minutes} minute(s)"
+
+        return True, ""
+
+    def record_failed_attempt(self, username: str):
+        """Record a failed login attempt"""
+        if 'login_attempts' not in st.session_state:
+            st.session_state.login_attempts = {}
+
+        if username not in st.session_state.login_attempts:
+            st.session_state.login_attempts[username] = []
+
+        st.session_state.login_attempts[username].append(datetime.now())
+
+    def clear_attempts(self, username: str):
+        """Clear failed attempts after successful login"""
+        if 'login_attempts' in st.session_state and username in st.session_state.login_attempts:
+            del st.session_state.login_attempts[username]
+
+# ============================================================================
+# END VALIDATION UTILITIES
+# ============================================================================
 
 # Configure Streamlit page
 st.set_page_config(
@@ -1207,10 +1396,21 @@ def show_login(cookie_manager):
                     st.error("Please enter both username and password")
                     return
 
+                # Initialize rate limiter
+                rate_limiter = LoginRateLimiter()
+
+                # Check rate limit
+                can_attempt, rate_limit_msg = rate_limiter.check_rate_limit(username)
+                if not can_attempt:
+                    st.error(rate_limit_msg)
+                    return
+
                 with st.spinner("Authenticating..."):
                     user_data = st.session_state.user_manager.authenticate_user(username, password)
 
                     if user_data:
+                        # Clear failed attempts on successful login
+                        rate_limiter.clear_attempts(username)
                         # Delete old session cookie (without setting logout marker)
                         try:
                             cookie_manager.delete('church_att_session')
@@ -1247,6 +1447,8 @@ def show_login(cookie_manager):
                         time.sleep(1)  # Brief pause to show success message
                         st.rerun()
                     else:
+                        # Record failed attempt
+                        rate_limiter.record_failed_attempt(username)
                         st.error("Invalid username or password")
 
         # Troubleshooting section
@@ -1617,28 +1819,36 @@ def show_password_change():
         st.info("""
         **Password Requirements:**
         - At least 8 characters long
-        - Contains both letters and numbers
+        - Contains uppercase and lowercase letters
+        - Contains at least one number
+        - Contains at least one special character (!@#$%^&* etc.)
         - Not the same as current password
         """)
-        
+
         submitted = st.form_submit_button("🔄 Change Password", use_container_width=True, type="primary")
-        
+
         if submitted:
-            # Validate inputs
+            # Comprehensive validation
+            validation_errors = []
+
             if not all([current_password, new_password, confirm_password]):
-                st.error("Please fill in all fields")
-                return
-            
+                validation_errors.append("Please fill in all fields")
+
             if new_password != confirm_password:
-                st.error("New passwords do not match")
-                return
-            
-            if len(new_password) < 8:
-                st.error("Password must be at least 8 characters long")
-                return
-            
+                validation_errors.append("New passwords do not match")
+
+            # Validate password strength
+            password_valid, password_msg = InputValidator.validate_password_strength(new_password)
+            if not password_valid:
+                validation_errors.append(password_msg)
+
             if new_password == current_password:
-                st.error("New password must be different from current password")
+                validation_errors.append("New password must be different from current password")
+
+            # Show all validation errors
+            if validation_errors:
+                for error in validation_errors:
+                    st.error(error)
                 return
             
             # Verify current password
@@ -1806,17 +2016,37 @@ def show_user_management():
             submitted = st.form_submit_button("Create User", use_container_width=True, type="primary")
 
             if submitted:
-                # Validation
-                if not new_full_name:
-                    st.error("Please enter full name")
+                # Comprehensive validation
+                validation_errors = []
+
+                # Validate full name
+                name_valid, name_msg = InputValidator.validate_name(new_full_name, "Full Name")
+                if not name_valid:
+                    validation_errors.append(name_msg)
+
+                # Validate email
+                email_valid, email_msg = InputValidator.validate_email(new_email)
+                if not email_valid:
+                    validation_errors.append(email_msg)
                 elif auto_generate and not new_email:
-                    st.error("Email is required when auto-generating credentials")
-                elif not auto_generate and not all([new_username, new_password]):
-                    st.error("Please fill in all required fields")
-                elif not auto_generate and len(new_password) < 8:
-                    st.error("Password must be at least 8 characters long")
-                elif not auto_generate and not users_df.empty and new_username in users_df['username'].values:
-                    st.error("Username already exists")
+                    validation_errors.append("Email is required when auto-generating credentials")
+
+                # Validate username and password (if not auto-generating)
+                if not auto_generate:
+                    username_valid, username_msg = InputValidator.validate_username(new_username)
+                    if not username_valid:
+                        validation_errors.append(username_msg)
+                    elif not users_df.empty and new_username in users_df['username'].values:
+                        validation_errors.append("Username already exists")
+
+                    password_valid, password_msg = InputValidator.validate_password_strength(new_password)
+                    if not password_valid:
+                        validation_errors.append(password_msg)
+
+                # Show all validation errors
+                if validation_errors:
+                    for error in validation_errors:
+                        st.error(error)
                 else:
                     # Generate credentials if needed
                     if auto_generate:
@@ -2454,19 +2684,47 @@ def show_member_management():
             submitted = st.form_submit_button("Add Member", use_container_width=True)
             
             if submitted:
-                if not full_name or not group:
-                    st.error("Full Name and Group are required!")
+                # Comprehensive validation
+                validation_errors = []
+
+                # Validate full name
+                name_valid, name_msg = InputValidator.validate_name(full_name, "Full Name")
+                if not name_valid:
+                    validation_errors.append(name_msg)
+
+                # Validate group
+                if not group:
+                    validation_errors.append("Group is required")
+
+                # Validate email (optional but must be valid format if provided)
+                email_valid, email_msg = InputValidator.validate_email(email)
+                if not email_valid:
+                    validation_errors.append(email_msg)
+
+                # Validate phone (optional but must be valid format if provided)
+                phone_valid, phone_msg = InputValidator.validate_phone(phone)
+                if not phone_valid:
+                    validation_errors.append(phone_msg)
+
+                # Show all validation errors
+                if validation_errors:
+                    for error in validation_errors:
+                        st.error(error)
                 else:
+                    # Sanitize inputs
+                    full_name = InputValidator.sanitize_text(full_name, 100)
+                    membership_number = InputValidator.sanitize_text(membership_number, 50)
+
                     # Load existing members
                     members_df = st.session_state.sheets_manager.load_members()
-                    
+
                     # Create new member record
                     new_member = {
                         'Membership Number': membership_number,
                         'Full Name': full_name,
                         'Group': group,
-                        'Email': email,
-                        'Phone': phone
+                        'Email': email.strip() if email else '',
+                        'Phone': phone.strip() if phone else ''
                     }
                     
                     # Add to DataFrame
